@@ -1,0 +1,29 @@
+{
+  "name": "doc-auditor",
+  "version": "0.1.0",
+  "description": "Installable documentation audit workflow for opencode projects.",
+  "type": "module",
+  "bin": {
+    "doc-auditor": "./bin/doc-auditor.js"
+  },
+  "scripts": {
+    "check": "node --check bin/doc-auditor.js",
+    "doctor:self": "node bin/doc-auditor.js --help"
+  },
+  "keywords": [
+    "opencode",
+    "documentation",
+    "audit",
+    "llm"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.17"
+  },
+  "files": [
+    "bin/",
+    "templates/",
+    "schema/",
+    "README.md"
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/wuerike/doc-auditor/main/schema/doc-auditor.config.schema.json",
+  "type": "object",
+  "required": ["version", "profilePath", "artifactRoot", "templateRoot", "processDocPath", "runnerCommand"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1
+    },
+    "profilePath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifactRoot": {
+      "type": "string",
+      "minLength": 1
+    },
+    "templateRoot": {
+      "type": "string",
+      "minLength": 1
+    },
+    "processDocPath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runnerCommand": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": false
+}
