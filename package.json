@@ -8,7 +8,8 @@
   },
   "scripts": {
     "check": "node --check bin/wefter.js && node --check src/cli/main.js",
-    "doctor:self": "node bin/wefter.js --help"
+    "doctor:self": "node bin/wefter.js --help",
+    "test": "node --test"
   },
   "keywords": [
     "opencode",
