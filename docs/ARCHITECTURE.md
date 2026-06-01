@@ -38,7 +38,7 @@ Workflow modules live under `src/workflows/<workflow-id>/` and expose `workflow.
 - `technical-shaping`
 - `work-unit-implementation`
 
-`documentation-audit` is executable end-to-end through the CLI. `work-unit-implementation` can generate planning runs, install OpenCode agents, enforce deterministic task/review guards and validate completed work units.
+`documentation-audit` is executable end-to-end through the CLI. `documentation-repair` generates gated repair runs from validated audit reports. `work-unit-implementation` can generate planning runs, install OpenCode agents, enforce deterministic task/review guards and validate completed work units.
 
 ## Documentation Audit Run
 
@@ -53,6 +53,12 @@ Run generation uses staging:
 
 This avoids exposing partially generated final runs after an interrupted creation.
 
+## Documentation Repair Run
+
+`wefter docs repair --audit-report <path>` reads config and creates a run under `.audit/wefter/documentation-repair/`.
+
+Repair runs contain prompts for planning, applying approved repairs and reviewing the repaired documentation. The generated flow separates safe documentation edits from human-decision items and recommends a follow-up audit after repair.
+
 ## OpenCode Integration
 
 The installer writes:
@@ -62,7 +68,12 @@ The installer writes:
 - `.opencode/agent/wefter-doc-audit-consolidator.md`
 - `.opencode/agent/wefter-doc-audit-validator.md`
 - `.opencode/agent/wefter-doc-audit-profile-builder.md`
+- `.opencode/agent/wefter-doc-repair-orchestrator.md`
+- `.opencode/agent/wefter-doc-repair-planner.md`
+- `.opencode/agent/wefter-doc-repairer.md`
+- `.opencode/agent/wefter-doc-repair-reviewer.md`
 - `.opencode/skills/documentation-audit/SKILL.md`
-- `opencode.json` commands `/wefter-audit-docs` and `/wefter-generate-doc-audit-profile`
+- `.opencode/skills/documentation-repair/SKILL.md`
+- `opencode.json` commands `/wefter-audit-docs`, `/wefter-generate-doc-audit-profile`, `/wefter-repair-docs` and `/wefter-run-work-unit`
 
 OpenCode must be restarted after installation because configuration is loaded once at startup.

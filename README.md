@@ -4,7 +4,7 @@ Wefter installs reusable OpenCode workflows that weave product intent into audit
 
 ## Status
 
-Early product extraction. The package is usable locally for `documentation-audit`; `work-unit-implementation` can generate planning runs and is being migrated from the source project semantics; the other workflows are architecture scaffolds.
+Early product extraction. The package is usable locally for `documentation-audit`, `documentation-repair`, and `work-unit-implementation`; the other workflows are architecture scaffolds.
 
 ## Package
 
@@ -23,7 +23,7 @@ runtime artifacts: .audit/wefter/
 | --- | --- | --- |
 | `product-shaping` | Planned | Shape an initial idea into product docs, scope and explicit decisions. |
 | `documentation-audit` | Available | Run redundant, adversarial documentation consistency audits. |
-| `documentation-repair` | Planned | Repair docs from a validated audit report without mixing detection and correction. |
+| `documentation-repair` | Available | Repair docs from a validated audit report without mixing detection and correction. |
 | `technical-shaping` | Planned | Convert product docs into explicit technical decisions and implementation constraints. |
 | `work-unit-implementation` | Available | Generate planning runs, orchestrate plan review, enforce task/review guards, and validate a work unit. |
 
@@ -51,6 +51,8 @@ Restart OpenCode, then use:
 ```text
 /wefter-generate-doc-audit-profile
 /wefter-audit-docs
+/wefter-repair-docs
+/wefter-run-work-unit
 ```
 
 CLI checks are also available:
@@ -58,6 +60,7 @@ CLI checks are also available:
 ```bash
 wefter doctor
 wefter docs audit --passes-per-lens 1 --max-audits 12
+wefter docs repair --audit-report .audit/wefter/documentation-audit/<run-id>/final/final-documentation-audit-report.md
 wefter new-run documentation-audit --passes-per-lens 1 --max-audits 12
 ```
 
@@ -75,7 +78,7 @@ wefter new-run documentation-audit --passes-per-lens 1 --max-audits 12
   "workflows": {
     "product-shaping": { "status": "planned", "enabled": false },
     "documentation-audit": { "status": "available", "enabled": true },
-    "documentation-repair": { "status": "planned", "enabled": false },
+    "documentation-repair": { "status": "available", "enabled": true },
     "technical-shaping": { "status": "planned", "enabled": false },
     "work-unit-implementation": {
       "status": "available",
@@ -91,14 +94,15 @@ wefter new-run documentation-audit --passes-per-lens 1 --max-audits 12
 
 - Installed audit agents render permissions using the configured artifact root and profile path.
 - `docs audit` writes through a staging directory and only moves the final run after all files are generated.
+- `docs repair` writes through a staging directory and requires an existing repository-relative audit report path.
 - Paths in `wefter.config.json` must be relative to the target repository and must not contain `..`.
 - Run names are plain directory names and cannot contain path separators.
 - Audit execution must not edit source documentation; correction is a separate workflow.
+- Repair execution must pause when validated findings require unresolved human decisions.
 
 ## Product Direction
 
 Next steps before a stable release:
 
-1. Add automated tests around `init`, `doctor`, `docs audit`, `work-unit run` and `work-unit guard`.
-2. Add installation manifest/uninstall support.
-3. Harden release and package publishing automation.
+1. Add installation manifest/uninstall support.
+2. Harden release and package publishing automation.

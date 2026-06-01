@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const VERSION = "0.1.0";
 const CONFIG_FILE = "wefter.config.json";
+const DOCUMENTATION_REPAIR_WORKFLOW_ID = "documentation-repair";
 const WORK_UNIT_WORKFLOW_ID = "work-unit-implementation";
 const DEFAULTS = Object.freeze({
   workflowRoot: ".wefter/workflows",
@@ -30,6 +31,7 @@ function printHelp() {
 Usage:
   wefter init [--yes] [--force] [--target <path>] [--profile-path <path>] [--artifact-root <path>] [--template-root <path>] [--process-doc-path <path>] [--runner-command <command>]
   wefter docs audit [--target <path>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--dry-run]
+  wefter docs repair [--target <path>] --audit-report <path> [--run-name <name>] [--dry-run]
   wefter work-unit run [--target <path>] [--work-unit-id <id>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--config-path <path>] [--lenses-path <path>] [--dry-run]
   wefter work-unit guard [--target <path>] [--run-id <id> | --run-root <path>] [--task-id <id>] [--mode Status|ReadyForReview|ReadyForNextTask|ReadyForFinalValidation] [--config-path <path>] [--json]
   wefter new-run documentation-audit [--target <path>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--dry-run]
@@ -39,6 +41,7 @@ Usage:
 Commands:
   init              Install opencode agents, skill, commands, templates and local config.
   docs audit        Generate one documentation audit run from the configured profile.
+  docs repair       Generate one documentation repair run from a final audit report.
   work-unit run     Generate one work-unit implementation run.
   work-unit guard   Validate task/review loop state for a work-unit run.
   new-run           Generate one workflow run. Currently supports documentation-audit.
@@ -87,8 +90,16 @@ function documentationAuditTemplateRoot() {
   return path.join(workflowPackageRoot("documentation-audit"), "templates");
 }
 
+function documentationRepairTemplateRoot() {
+  return path.join(workflowPackageRoot(DOCUMENTATION_REPAIR_WORKFLOW_ID), "templates");
+}
+
 function workUnitWorkflowPackageRoot() {
   return workflowPackageRoot(WORK_UNIT_WORKFLOW_ID);
+}
+
+function documentationRepairArtifactRoot() {
+  return ".audit/wefter/documentation-repair";
 }
 
 function resolveTarget(flags) {
@@ -347,7 +358,7 @@ function defaultWorkflowRegistry() {
   return {
     "product-shaping": { status: "planned", enabled: false },
     "documentation-audit": { status: "available", enabled: true },
-    "documentation-repair": { status: "planned", enabled: false },
+    "documentation-repair": { status: "available", enabled: true },
     "technical-shaping": { status: "planned", enabled: false },
     "work-unit-implementation": {
       status: "available",
@@ -436,7 +447,7 @@ function mergeOpencodeConfig(targetRoot, config, force) {
   existing["$schema"] = existing["$schema"] || "https://opencode.ai/config.json";
   existing.watcher = existing.watcher || {};
   existing.watcher.ignore = Array.isArray(existing.watcher.ignore) ? existing.watcher.ignore : [];
-  for (const ignored of [config.artifactRoot, config.templateRoot, workUnitConfig?.runArtifactsRoot]) {
+  for (const ignored of [config.artifactRoot, config.templateRoot, documentationRepairArtifactRoot(), workUnitConfig?.runArtifactsRoot]) {
     if (!ignored) {
       continue;
     }
@@ -468,10 +479,16 @@ function mergeOpencodeConfig(targetRoot, config, force) {
     agent: "wefter-work-unit-orchestrator",
     template: `Run or resume the Wefter work-unit implementation workflow. Read ${CONFIG_FILE} first. If the user provided an existing .audit/wefter/work-unit-implementation/<run-id> path, resume it. Otherwise create a run with ${config.runnerCommand} work-unit run. Use the work unit id supplied by the user, or ask if unclear. Generate the work-unit plan, run adversarial plan reviews, consolidate, validate, repair candidate artifacts, apply the configured gate policy, and only execute code tasks after approval.`
   };
+  const repairDocsCommand = {
+    description: "Run the Wefter documentation repair workflow from a validated audit report.",
+    agent: "wefter-doc-repair-orchestrator",
+    template: `Run or resume the Wefter documentation repair workflow. Read ${CONFIG_FILE} first. If the user provided an existing .audit/wefter/documentation-repair/<run-id> path, resume it. Otherwise create a run with ${config.runnerCommand} docs repair using the final audit report path supplied by the user. If the report path is missing, ask for it. Plan repairs first, pause on human-decision items, apply approved documentation edits, review the result, and recommend a follow-up documentation audit.`
+  };
 
   for (const [name, nextValue] of Object.entries({
     "wefter-audit-docs": fullRunCommand,
     "wefter-generate-doc-audit-profile": generateProfileCommand,
+    "wefter-repair-docs": repairDocsCommand,
     "wefter-run-work-unit": workUnitCommand
   })) {
     if (existing.command[name] && JSON.stringify(existing.command[name]) !== JSON.stringify(nextValue) && !force) {
@@ -497,6 +514,7 @@ function defaultProfile(config = DEFAULTS) {
         ".git/**",
         ".opencode/**",
         `${config.artifactRoot}/**`,
+        `${documentationRepairArtifactRoot()}/**`,
         `${config.templateRoot}/**`,
         config.processDocPath
       ])
@@ -724,6 +742,9 @@ async function commandInit(flags) {
     RUNNER_COMMAND: config.runnerCommand,
     CONFIG_FILE,
     RUNNER_COMMAND_NEW_RUN_PATTERN: yamlSingleQuoted(`${config.runnerCommand}*`),
+    RUNNER_COMMAND_DOCS_REPAIR_PATTERN: yamlSingleQuoted(`${config.runnerCommand} docs repair*`),
+    DOCUMENTATION_REPAIR_ARTIFACT_ROOT: documentationRepairArtifactRoot(),
+    DOCUMENTATION_REPAIR_ARTIFACT_ROOT_WINDOWS: windowsPermissionPath(documentationRepairArtifactRoot()),
     RUNNER_COMMAND_WORK_UNIT_PATTERN: yamlSingleQuoted(`${config.runnerCommand} work-unit*`),
     WORK_UNIT_ARTIFACT_ROOT: ".audit/wefter/work-unit-implementation",
     WORK_UNIT_ARTIFACT_ROOT_WINDOWS: windowsPermissionPath(".audit/wefter/work-unit-implementation"),
@@ -752,6 +773,11 @@ async function commandInit(flags) {
   copyRenderedTemplate(path.join(auditTemplates, "opencode/agent/wefter-doc-audit-validator.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-validator.md"), values, flags.force);
   copyRenderedTemplate(path.join(auditTemplates, "opencode/agent/wefter-doc-audit-profile-builder.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-profile-builder.md"), values, flags.force);
   copyRenderedTemplate(path.join(auditTemplates, "opencode/skills/documentation-audit/SKILL.md.tmpl"), path.join(targetRoot, ".opencode/skills/documentation-audit/SKILL.md"), values, flags.force);
+  const repairTemplates = documentationRepairTemplateRoot();
+  for (const agentFile of ["wefter-doc-repair-orchestrator", "wefter-doc-repair-planner", "wefter-doc-repairer", "wefter-doc-repair-reviewer"]) {
+    copyRenderedTemplate(path.join(repairTemplates, "opencode/agent", `${agentFile}.md.tmpl`), path.join(targetRoot, ".opencode/agent", `${agentFile}.md`), values, flags.force);
+  }
+  copyRenderedTemplate(path.join(repairTemplates, "opencode/skills/documentation-repair/SKILL.md.tmpl"), path.join(targetRoot, ".opencode/skills/documentation-repair/SKILL.md"), values, flags.force);
   for (const agent of ["orchestrator", "planner", "plan-auditor", "plan-consolidator", "plan-validator", "plan-repairer", "task-implementer", "task-reviewer", "validator"]) {
     copyRenderedTemplate(path.join(workUnitPackageRoot, "templates/opencode/agent", `wefter-work-unit-${agent}.md.tmpl`), path.join(targetRoot, ".opencode/agent", `wefter-work-unit-${agent}.md`), values, flags.force);
   }
@@ -770,7 +796,7 @@ async function commandInit(flags) {
   console.log(`Artifacts: ${config.artifactRoot}`);
   console.log(`Runner command: ${config.runnerCommand}`);
   console.log(`Tip: add ${config.artifactRoot}/ to .gitignore if you do not want to track generated audit runs.`);
-  console.log("Restart opencode before using /wefter-audit-docs, /wefter-generate-doc-audit-profile, or /wefter-run-work-unit.");
+  console.log("Restart opencode before using /wefter-audit-docs, /wefter-generate-doc-audit-profile, /wefter-repair-docs, or /wefter-run-work-unit.");
 }
 
 function readTextRequired(filePath) {
@@ -936,6 +962,116 @@ function commandNewRun(flags) {
   console.log(`Created documentation audit run: ${runRoot}`);
   console.log(`Auditor prompts generated: ${combinations.length}`);
   console.log(`Next prompt directory: ${path.join(runRoot, "prompts", "auditors")}`);
+}
+
+function commandDocsRepair(flags) {
+  const targetRoot = resolveTarget(flags);
+  const config = readConfig(targetRoot);
+  if (!flags["audit-report"]) {
+    throw new Error("--audit-report is required for docs repair.");
+  }
+  const auditReportPath = normalizeRelativePath(flags["audit-report"], "audit-report");
+  const auditReportFullPath = path.join(targetRoot, auditReportPath);
+  ensureInside(targetRoot, auditReportFullPath, "audit report");
+  if (!fs.existsSync(auditReportFullPath)) {
+    throw new Error(`Audit report not found: ${auditReportFullPath}`);
+  }
+
+  const runName = flags["run-name"] || timestampRunName();
+  assertSafeRunName(runName);
+
+  const artifactRootRelative = documentationRepairArtifactRoot();
+  const artifactRoot = path.join(targetRoot, artifactRootRelative);
+  const tempRoot = path.join(artifactRoot, ".tmp");
+  const runRoot = path.join(artifactRoot, runName);
+  const stagingRunRoot = path.join(tempRoot, runName);
+  ensureInside(targetRoot, artifactRoot, "documentation repair artifact root");
+  ensureInside(targetRoot, runRoot, "documentation repair run root");
+  ensureInside(targetRoot, stagingRunRoot, "documentation repair staging run root");
+
+  if (flags["dry-run"]) {
+    console.log(`Run name: ${runName}`);
+    console.log(`Audit report: ${auditReportPath}`);
+    console.log(`Output root: ${runRoot}`);
+    return;
+  }
+
+  if (fs.existsSync(runRoot)) {
+    throw new Error(`Run directory already exists: ${runRoot}. Use a different --run-name or resume the existing run.`);
+  }
+  if (fs.existsSync(stagingRunRoot)) {
+    throw new Error(`Staging directory already exists: ${stagingRunRoot}. Remove it manually after verifying no repair run is in progress, or use a different --run-name.`);
+  }
+
+  const runRootRelative = toPosix(path.join(artifactRootRelative, runName));
+  const promptsRoot = path.join(stagingRunRoot, "prompts");
+  const planningRoot = path.join(stagingRunRoot, "planning");
+  const repairRoot = path.join(stagingRunRoot, "repair");
+  const reviewRoot = path.join(stagingRunRoot, "review");
+  const finalRoot = path.join(stagingRunRoot, "final");
+  for (const directory of [artifactRoot, tempRoot, stagingRunRoot, promptsRoot, planningRoot, repairRoot, reviewRoot, finalRoot]) {
+    fs.mkdirSync(directory, { recursive: true });
+  }
+
+  const templateRoot = path.join(documentationRepairTemplateRoot(), "prompts");
+  const planTemplate = fs.readFileSync(path.join(templateRoot, "repair-plan-prompt.md"), "utf8");
+  const applyTemplate = fs.readFileSync(path.join(templateRoot, "repair-apply-prompt.md"), "utf8");
+  const reviewTemplate = fs.readFileSync(path.join(templateRoot, "repair-review-prompt.md"), "utf8");
+  const repairPlan = toPosix(path.join(runRootRelative, "planning", "documentation-repair-plan.md"));
+  const humanDecisions = toPosix(path.join(runRootRelative, "planning", "human-decisions.md"));
+  const repairLog = toPosix(path.join(runRootRelative, "repair", "repair-log.md"));
+  const reviewOutput = toPosix(path.join(runRootRelative, "review", "repair-review.md"));
+  const finalSummary = toPosix(path.join(runRootRelative, "final", "documentation-repair-summary.md"));
+  const profile = readJsonIfExists(path.join(targetRoot, config.profilePath), "audit profile");
+  const baseValues = {
+    RUN_ID: runName,
+    RUN_ROOT: runRootRelative,
+    AUDIT_REPORT: auditReportPath,
+    REPAIR_PLAN_OUTPUT: repairPlan,
+    HUMAN_DECISIONS_OUTPUT: humanDecisions,
+    REPAIR_LOG_OUTPUT: repairLog,
+    REVIEW_OUTPUT: reviewOutput,
+    FINAL_SUMMARY_OUTPUT: finalSummary,
+    CORPUS_INCLUDE: markdownList(profile?.corpus?.include || ["*.md", "docs/**/*.md"]),
+    CORPUS_EXCLUDE: markdownList(profile?.corpus?.exclude || ["node_modules/**", ".git/**", ".audit/**", ".opencode/**"])
+  };
+
+  fs.writeFileSync(path.join(promptsRoot, "plan-repair.md"), renderTemplate(planTemplate, baseValues), "utf8");
+  fs.writeFileSync(path.join(promptsRoot, "apply-repair.md"), renderTemplate(applyTemplate, baseValues), "utf8");
+  fs.writeFileSync(path.join(promptsRoot, "review-repair.md"), renderTemplate(reviewTemplate, baseValues), "utf8");
+
+  writeJson(path.join(stagingRunRoot, "manifest.json"), {
+    version: 1,
+    workflowId: DOCUMENTATION_REPAIR_WORKFLOW_ID,
+    runId: runName,
+    generatedAt: new Date().toISOString(),
+    auditReport: auditReportPath,
+    paths: {
+      runRoot: runRootRelative,
+      prompts: toPosix(path.join(runRootRelative, "prompts")),
+      repairPlan,
+      humanDecisions,
+      repairLog,
+      reviewOutput,
+      finalSummary
+    },
+    prompts: {
+      planRepair: toPosix(path.join(runRootRelative, "prompts", "plan-repair.md")),
+      applyRepair: toPosix(path.join(runRootRelative, "prompts", "apply-repair.md")),
+      reviewRepair: toPosix(path.join(runRootRelative, "prompts", "review-repair.md"))
+    }
+  });
+
+  fs.writeFileSync(path.join(stagingRunRoot, "README.md"), `# Documentation Repair Run\n\nRun: ${runName}\nAudit report: ${auditReportPath}\n\n## Execution Order\n\n1. Execute prompts/plan-repair.md.\n2. If planning records human decisions, pause until they are resolved.\n3. Execute prompts/apply-repair.md after approval.\n4. Execute prompts/review-repair.md after repair edits.\n5. Run a follow-up documentation audit.\n`, "utf8");
+
+  if (fs.existsSync(runRoot)) {
+    throw new Error(`Run directory was created before finalizing the staging move: ${runRoot}`);
+  }
+  fs.renameSync(stagingRunRoot, runRoot);
+
+  console.log(`Created documentation repair run: ${runRoot}`);
+  console.log(`Audit report: ${auditReportPath}`);
+  console.log(`Next prompt: ${path.join(runRoot, "prompts", "plan-repair.md")}`);
 }
 
 function commandWorkUnitRun(flags) {
@@ -1558,6 +1694,31 @@ function commandDoctor(flags) {
     assertIncludes(orchestrator, workUnitConfigPath(config), "work-unit orchestrator workflow config path");
     assertIncludes(orchestrator, config.runnerCommand, "work-unit orchestrator runner command");
   });
+  check("documentation repair opencode agents", () => {
+    const agentFiles = [
+      "wefter-doc-repair-orchestrator.md",
+      "wefter-doc-repair-planner.md",
+      "wefter-doc-repairer.md",
+      "wefter-doc-repair-reviewer.md"
+    ];
+    const posixGlob = `${documentationRepairArtifactRoot()}/**`;
+    const windowsGlob = windowsPermissionGlob(documentationRepairArtifactRoot());
+
+    for (const file of agentFiles) {
+      const fullPath = path.join(targetRoot, ".opencode/agent", file);
+      const content = readTextRequired(fullPath);
+      assertNoPlaceholders(fullPath, content);
+      if (file.includes("planner") || file.includes("reviewer")) {
+        assertIncludes(content, posixGlob, `${file} POSIX artifact permission`);
+        assertIncludes(content, windowsGlob, `${file} Windows artifact permission`);
+      }
+    }
+
+    const orchestrator = readTextRequired(path.join(targetRoot, ".opencode/agent/wefter-doc-repair-orchestrator.md"));
+    assertIncludes(orchestrator, CONFIG_FILE, "documentation repair orchestrator config reference");
+    assertIncludes(orchestrator, documentationRepairArtifactRoot(), "documentation repair orchestrator artifact root");
+    assertIncludes(orchestrator, config.runnerCommand, "documentation repair orchestrator runner command");
+  });
   check("opencode skill", () => {
     const skillPath = path.join(targetRoot, ".opencode/skills/documentation-audit/SKILL.md");
     const content = readTextRequired(skillPath);
@@ -1573,17 +1734,23 @@ function commandDoctor(flags) {
     assertIncludes(content, workUnitConfigPath(config), "work-unit skill config path");
     assertIncludes(content, workUnitLensesPath(config), "work-unit skill lenses path");
   });
+  check("documentation repair opencode skill", () => {
+    const skillPath = path.join(targetRoot, ".opencode/skills/documentation-repair/SKILL.md");
+    const content = readTextRequired(skillPath);
+    assertNoPlaceholders(skillPath, content);
+    assertIncludes(content, "/wefter-repair-docs", "documentation repair skill command reference");
+  });
   check("opencode commands", () => {
     const opencode = readJson(path.join(targetRoot, "opencode.json"), "opencode.json");
-    if (opencode.command?.["wefter-audit-docs"]?.agent !== "wefter-doc-audit-orchestrator" || opencode.command?.["wefter-generate-doc-audit-profile"]?.agent !== "wefter-doc-audit-profile-builder" || opencode.command?.["wefter-run-work-unit"]?.agent !== "wefter-work-unit-orchestrator") {
-      throw new Error("Missing Wefter documentation audit opencode commands.");
+    if (opencode.command?.["wefter-audit-docs"]?.agent !== "wefter-doc-audit-orchestrator" || opencode.command?.["wefter-generate-doc-audit-profile"]?.agent !== "wefter-doc-audit-profile-builder" || opencode.command?.["wefter-repair-docs"]?.agent !== "wefter-doc-repair-orchestrator" || opencode.command?.["wefter-run-work-unit"]?.agent !== "wefter-work-unit-orchestrator") {
+      throw new Error("Missing Wefter opencode commands.");
     }
     if (!Array.isArray(opencode.skills?.paths) || !opencode.skills.paths.includes(".opencode/skills")) {
       throw new Error("Missing .opencode/skills in opencode skills.paths.");
     }
     const watcherIgnore = Array.isArray(opencode.watcher?.ignore) ? opencode.watcher.ignore : [];
     const workUnitConfig = readJson(path.join(targetRoot, workUnitConfigPath(config)), "work-unit config");
-    for (const ignored of [config.artifactRoot, config.templateRoot, workUnitConfig.runArtifactsRoot]) {
+    for (const ignored of [config.artifactRoot, config.templateRoot, documentationRepairArtifactRoot(), workUnitConfig.runArtifactsRoot]) {
       const pattern = `${ignored.replace(/\/$/, "")}/**`;
       if (!watcherIgnore.includes(pattern)) {
         throw new Error(`Missing opencode watcher ignore '${pattern}'.`);
@@ -1629,6 +1796,10 @@ export async function main(argv = process.argv.slice(2)) {
   }
   if (command === "docs" && subcommand === "audit") {
     commandNewRun(flags);
+    return;
+  }
+  if (command === "docs" && subcommand === "repair") {
+    commandDocsRepair(flags);
     return;
   }
   if (command === "work-unit" && subcommand === "run") {

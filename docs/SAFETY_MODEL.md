@@ -6,6 +6,7 @@ Core rules:
 
 - Detection and correction are separate workflows.
 - Documentation audit agents must not edit source documentation.
+- Documentation repair must plan before editing and pause on unresolved human decisions.
 - Runtime artifacts are written under `.audit/wefter/` by default.
 - Versioned workflow configuration is written under `.wefter/` by default.
 - Paths are target-repository relative and must not contain `..`.

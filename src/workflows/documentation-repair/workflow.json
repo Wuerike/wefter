@@ -1,6 +1,6 @@
 {
   "id": "documentation-repair",
-  "status": "planned",
+  "status": "available",
   "title": "Documentation Repair",
   "summary": "Repairs documentation from validated audit reports while preserving source-of-truth boundaries and human decision gates.",
   "commands": {

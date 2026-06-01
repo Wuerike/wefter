@@ -45,12 +45,33 @@ test("init installs config, OpenCode files, and doctor passes", () => {
   const target = initTarget("init");
 
   assert.equal(readJson(path.join(target, "wefter.config.json")).workflows["work-unit-implementation"].status, "available");
+  assert.equal(readJson(path.join(target, "wefter.config.json")).workflows["documentation-repair"].status, "available");
   assert.ok(fs.existsSync(path.join(target, ".opencode", "agent", "wefter-doc-audit-orchestrator.md")));
+  assert.ok(fs.existsSync(path.join(target, ".opencode", "agent", "wefter-doc-repair-orchestrator.md")));
   assert.ok(fs.existsSync(path.join(target, ".opencode", "agent", "wefter-work-unit-orchestrator.md")));
+  assert.ok(fs.existsSync(path.join(target, ".opencode", "skills", "documentation-repair", "SKILL.md")));
   assert.ok(fs.existsSync(path.join(target, ".opencode", "skills", "work-unit-implementation", "SKILL.md")));
 
   const doctor = run(["doctor", "--target", target]);
   assert.match(doctor.stdout, /Wefter installation looks healthy/);
+});
+
+test("docs repair dry-run and real run generate expected artifacts", () => {
+  const target = initTarget("docs-repair");
+  const reportPath = path.join(".audit", "wefter", "documentation-audit", "audit-run", "final", "final-documentation-audit-report.md");
+  writeText(path.join(target, reportPath), "# Final Documentation Audit Report\n\n## Validated Findings\n\n- F-001\n");
+
+  const dry = run(["docs", "repair", "--target", target, "--audit-report", reportPath, "--run-name", "repair-dry", "--dry-run"]);
+  assert.match(dry.stdout, /Run name: repair-dry/);
+  assert.match(dry.stdout, /Audit report:/);
+
+  run(["docs", "repair", "--target", target, "--audit-report", reportPath, "--run-name", "repair-run"]);
+  const manifest = readJson(path.join(target, ".audit", "wefter", "documentation-repair", "repair-run", "manifest.json"));
+  assert.equal(manifest.workflowId, "documentation-repair");
+  assert.equal(manifest.auditReport, reportPath.replaceAll("\\", "/"));
+  assert.ok(fs.existsSync(path.join(target, ".audit", "wefter", "documentation-repair", "repair-run", "prompts", "plan-repair.md")));
+  assert.ok(fs.existsSync(path.join(target, ".audit", "wefter", "documentation-repair", "repair-run", "prompts", "apply-repair.md")));
+  assert.ok(fs.existsSync(path.join(target, ".audit", "wefter", "documentation-repair", "repair-run", "prompts", "review-repair.md")));
 });
 
 test("docs audit dry-run and real run generate expected artifacts", () => {
@@ -110,6 +131,7 @@ test("path safety rejects traversal and path-like run names", () => {
 
   assert.match(run(["init", "--target", makeTarget("bad-init"), "--yes", "--profile-path", "../profile.json"], { expectFailure: true }).stderr, /must not be empty or contain '\.\.'/);
   assert.match(run(["docs", "audit", "--target", target, "--run-name", "..\\bad"], { expectFailure: true }).stderr, /plain directory name/);
+  assert.match(run(["docs", "repair", "--target", target, "--audit-report", "../audit-report.md"], { expectFailure: true }).stderr, /must not be empty or contain '\.\.'/);
   assert.match(run(["work-unit", "run", "--target", target, "--config-path", "../config.json"], { expectFailure: true }).stderr, /must not be empty or contain '\.\.'/);
   assert.match(run(["work-unit", "guard", "--target", target, "--run-root", outside], { expectFailure: true }).stderr, /resolves outside the target repository/);
 });
