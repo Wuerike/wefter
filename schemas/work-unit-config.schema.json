@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wefter.dev/schemas/work-unit-config.schema.json",
+  "type": "object",
+  "required": ["version", "workflowName", "releaseId", "workUnitsDocument", "sourceDocs", "runArtifactsRoot", "versionedArtifacts", "defaultWorkUnitId", "defaultPlanAuditPassesPerLens", "gatePolicy"],
+  "properties": {
+    "version": { "const": 1 },
+    "workflowName": { "const": "work-unit-implementation" },
+    "releaseId": { "type": "string", "minLength": 1 },
+    "workUnitsDocument": { "type": "string", "minLength": 1 },
+    "sourceDocs": {
+      "type": "object",
+      "required": ["include", "exclude"],
+      "properties": {
+        "include": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "exclude": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      },
+      "additionalProperties": false
+    },
+    "runArtifactsRoot": { "type": "string", "minLength": 1 },
+    "versionedArtifacts": {
+      "type": "object",
+      "required": ["executionRoot", "decisionLogRoot"],
+      "properties": {
+        "executionRoot": { "type": "string", "minLength": 1 },
+        "decisionLogRoot": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "defaultWorkUnitId": { "type": "string", "minLength": 1 },
+    "defaultPlanAuditPassesPerLens": { "type": "integer", "minimum": 1 },
+    "gatePolicy": {
+      "type": "object",
+      "required": ["mode", "structuralWorkUnits", "alwaysPauseOn"],
+      "properties": {
+        "mode": { "type": "string", "minLength": 1 },
+        "structuralWorkUnits": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "alwaysPauseOn": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
