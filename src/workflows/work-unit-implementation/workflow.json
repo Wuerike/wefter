@@ -1,6 +1,6 @@
 {
   "id": "work-unit-implementation",
-  "status": "planned",
+  "status": "available",
   "title": "Work Unit Implementation",
   "summary": "Plans, audits, repairs, gates, implements, reviews and validates one release work unit at a time using task-level TDD and deterministic guards.",
   "commands": {

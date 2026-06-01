@@ -350,8 +350,8 @@ function defaultWorkflowRegistry() {
     "documentation-repair": { status: "planned", enabled: false },
     "technical-shaping": { status: "planned", enabled: false },
     "work-unit-implementation": {
-      status: "planned",
-      enabled: false,
+      status: "available",
+      enabled: true,
       configPath: ".wefter/workflows/work-unit-implementation/config.json",
       lensesPath: ".wefter/workflows/work-unit-implementation/lenses.json"
     }
@@ -431,11 +431,15 @@ function copyDirectory(sourceRoot, destinationRoot, force) {
 function mergeOpencodeConfig(targetRoot, config, force) {
   const opencodePath = path.join(targetRoot, "opencode.json");
   const existing = fs.existsSync(opencodePath) ? readJson(opencodePath, "opencode.json") : { "$schema": "https://opencode.ai/config.json" };
+  const workUnitConfig = readJsonIfExists(path.join(targetRoot, workUnitConfigPath(config)), "work-unit config");
 
   existing["$schema"] = existing["$schema"] || "https://opencode.ai/config.json";
   existing.watcher = existing.watcher || {};
   existing.watcher.ignore = Array.isArray(existing.watcher.ignore) ? existing.watcher.ignore : [];
-  for (const ignored of [config.artifactRoot, config.templateRoot]) {
+  for (const ignored of [config.artifactRoot, config.templateRoot, workUnitConfig?.runArtifactsRoot]) {
+    if (!ignored) {
+      continue;
+    }
     const pattern = `${ignored.replace(/\/$/, "")}/**`;
     if (!existing.watcher.ignore.includes(pattern)) {
       existing.watcher.ignore.push(pattern);
@@ -459,10 +463,16 @@ function mergeOpencodeConfig(targetRoot, config, force) {
     agent: "wefter-doc-audit-profile-builder",
     template: `Inspect this repository and create or update the documentation audit profile defined by ${CONFIG_FILE}. If the profile already exists, write a proposal under the configured artifact root instead of overwriting it unless the user explicitly asked to replace it.`
   };
+  const workUnitCommand = {
+    description: "Run the Wefter work-unit implementation workflow: plan, review, gate, implement tasks, review tasks, and validate.",
+    agent: "wefter-work-unit-orchestrator",
+    template: `Run or resume the Wefter work-unit implementation workflow. Read ${CONFIG_FILE} first. If the user provided an existing .audit/wefter/work-unit-implementation/<run-id> path, resume it. Otherwise create a run with ${config.runnerCommand} work-unit run. Use the work unit id supplied by the user, or ask if unclear. Generate the work-unit plan, run adversarial plan reviews, consolidate, validate, repair candidate artifacts, apply the configured gate policy, and only execute code tasks after approval.`
+  };
 
   for (const [name, nextValue] of Object.entries({
     "wefter-audit-docs": fullRunCommand,
-    "wefter-generate-doc-audit-profile": generateProfileCommand
+    "wefter-generate-doc-audit-profile": generateProfileCommand,
+    "wefter-run-work-unit": workUnitCommand
   })) {
     if (existing.command[name] && JSON.stringify(existing.command[name]) !== JSON.stringify(nextValue) && !force) {
       throw new Error(`Refusing to overwrite existing opencode command '${name}'. Use --force to replace it.`);
@@ -713,7 +723,12 @@ async function commandInit(flags) {
     PROCESS_DOC_PATH: config.processDocPath,
     RUNNER_COMMAND: config.runnerCommand,
     CONFIG_FILE,
-    RUNNER_COMMAND_NEW_RUN_PATTERN: yamlSingleQuoted(`${config.runnerCommand}*`)
+    RUNNER_COMMAND_NEW_RUN_PATTERN: yamlSingleQuoted(`${config.runnerCommand}*`),
+    RUNNER_COMMAND_WORK_UNIT_PATTERN: yamlSingleQuoted(`${config.runnerCommand} work-unit*`),
+    WORK_UNIT_ARTIFACT_ROOT: ".audit/wefter/work-unit-implementation",
+    WORK_UNIT_ARTIFACT_ROOT_WINDOWS: windowsPermissionPath(".audit/wefter/work-unit-implementation"),
+    WORK_UNIT_CONFIG_PATH: ".wefter/workflows/work-unit-implementation/config.json",
+    WORK_UNIT_LENSES_PATH: ".wefter/workflows/work-unit-implementation/lenses.json"
   };
 
   writeJsonIfSafe(path.join(targetRoot, CONFIG_FILE), {
@@ -737,6 +752,10 @@ async function commandInit(flags) {
   copyRenderedTemplate(path.join(auditTemplates, "opencode/agent/wefter-doc-audit-validator.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-validator.md"), values, flags.force);
   copyRenderedTemplate(path.join(auditTemplates, "opencode/agent/wefter-doc-audit-profile-builder.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-profile-builder.md"), values, flags.force);
   copyRenderedTemplate(path.join(auditTemplates, "opencode/skills/documentation-audit/SKILL.md.tmpl"), path.join(targetRoot, ".opencode/skills/documentation-audit/SKILL.md"), values, flags.force);
+  for (const agent of ["orchestrator", "planner", "plan-auditor", "plan-consolidator", "plan-validator", "plan-repairer", "task-implementer", "task-reviewer", "validator"]) {
+    copyRenderedTemplate(path.join(workUnitPackageRoot, "templates/opencode/agent", `wefter-work-unit-${agent}.md.tmpl`), path.join(targetRoot, ".opencode/agent", `wefter-work-unit-${agent}.md`), values, flags.force);
+  }
+  copyRenderedTemplate(path.join(workUnitPackageRoot, "templates/opencode/skills/work-unit-implementation/SKILL.md.tmpl"), path.join(targetRoot, ".opencode/skills/work-unit-implementation/SKILL.md"), values, flags.force);
   copyDirectory(path.join(auditTemplates, "prompts"), path.join(targetRoot, config.templateRoot), flags.force);
   copyRenderedTemplate(path.join(auditTemplates, "README.md.tmpl"), path.join(targetRoot, config.processDocPath), values, flags.force);
   mergeOpencodeConfig(targetRoot, config, flags.force);
@@ -751,7 +770,7 @@ async function commandInit(flags) {
   console.log(`Artifacts: ${config.artifactRoot}`);
   console.log(`Runner command: ${config.runnerCommand}`);
   console.log(`Tip: add ${config.artifactRoot}/ to .gitignore if you do not want to track generated audit runs.`);
-  console.log("Restart opencode before using /wefter-audit-docs or /wefter-generate-doc-audit-profile.");
+  console.log("Restart opencode before using /wefter-audit-docs, /wefter-generate-doc-audit-profile, or /wefter-run-work-unit.");
 }
 
 function readTextRequired(filePath) {
@@ -1508,6 +1527,37 @@ function commandDoctor(flags) {
     assertIncludes(orchestrator, config.profilePath, "orchestrator profile path");
     assertIncludes(orchestrator, config.runnerCommand, "orchestrator runner command");
   });
+  check("work-unit opencode agents", () => {
+    const agentFiles = [
+      "wefter-work-unit-orchestrator.md",
+      "wefter-work-unit-planner.md",
+      "wefter-work-unit-plan-auditor.md",
+      "wefter-work-unit-plan-consolidator.md",
+      "wefter-work-unit-plan-validator.md",
+      "wefter-work-unit-plan-repairer.md",
+      "wefter-work-unit-task-implementer.md",
+      "wefter-work-unit-task-reviewer.md",
+      "wefter-work-unit-validator.md"
+    ];
+    const workUnitConfig = readJson(path.join(targetRoot, workUnitConfigPath(config)), "work-unit config");
+    const posixGlob = `${workUnitConfig.runArtifactsRoot}/**`;
+    const windowsGlob = windowsPermissionGlob(workUnitConfig.runArtifactsRoot);
+
+    for (const file of agentFiles) {
+      const fullPath = path.join(targetRoot, ".opencode/agent", file);
+      const content = readTextRequired(fullPath);
+      assertNoPlaceholders(fullPath, content);
+      if (!file.includes("task-implementer") && !file.includes("orchestrator")) {
+        assertIncludes(content, posixGlob, `${file} POSIX artifact permission`);
+        assertIncludes(content, windowsGlob, `${file} Windows artifact permission`);
+      }
+    }
+
+    const orchestrator = readTextRequired(path.join(targetRoot, ".opencode/agent/wefter-work-unit-orchestrator.md"));
+    assertIncludes(orchestrator, CONFIG_FILE, "work-unit orchestrator config reference");
+    assertIncludes(orchestrator, workUnitConfigPath(config), "work-unit orchestrator workflow config path");
+    assertIncludes(orchestrator, config.runnerCommand, "work-unit orchestrator runner command");
+  });
   check("opencode skill", () => {
     const skillPath = path.join(targetRoot, ".opencode/skills/documentation-audit/SKILL.md");
     const content = readTextRequired(skillPath);
@@ -1516,16 +1566,24 @@ function commandDoctor(flags) {
     assertIncludes(content, config.templateRoot, "skill template root");
     assertIncludes(content, config.processDocPath, "skill process doc path");
   });
+  check("work-unit opencode skill", () => {
+    const skillPath = path.join(targetRoot, ".opencode/skills/work-unit-implementation/SKILL.md");
+    const content = readTextRequired(skillPath);
+    assertNoPlaceholders(skillPath, content);
+    assertIncludes(content, workUnitConfigPath(config), "work-unit skill config path");
+    assertIncludes(content, workUnitLensesPath(config), "work-unit skill lenses path");
+  });
   check("opencode commands", () => {
     const opencode = readJson(path.join(targetRoot, "opencode.json"), "opencode.json");
-    if (opencode.command?.["wefter-audit-docs"]?.agent !== "wefter-doc-audit-orchestrator" || opencode.command?.["wefter-generate-doc-audit-profile"]?.agent !== "wefter-doc-audit-profile-builder") {
+    if (opencode.command?.["wefter-audit-docs"]?.agent !== "wefter-doc-audit-orchestrator" || opencode.command?.["wefter-generate-doc-audit-profile"]?.agent !== "wefter-doc-audit-profile-builder" || opencode.command?.["wefter-run-work-unit"]?.agent !== "wefter-work-unit-orchestrator") {
       throw new Error("Missing Wefter documentation audit opencode commands.");
     }
     if (!Array.isArray(opencode.skills?.paths) || !opencode.skills.paths.includes(".opencode/skills")) {
       throw new Error("Missing .opencode/skills in opencode skills.paths.");
     }
     const watcherIgnore = Array.isArray(opencode.watcher?.ignore) ? opencode.watcher.ignore : [];
-    for (const ignored of [config.artifactRoot, config.templateRoot]) {
+    const workUnitConfig = readJson(path.join(targetRoot, workUnitConfigPath(config)), "work-unit config");
+    for (const ignored of [config.artifactRoot, config.templateRoot, workUnitConfig.runArtifactsRoot]) {
       const pattern = `${ignored.replace(/\/$/, "")}/**`;
       if (!watcherIgnore.includes(pattern)) {
         throw new Error(`Missing opencode watcher ignore '${pattern}'.`);

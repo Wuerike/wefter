@@ -1,0 +1,25 @@
+---
+name: work-unit-implementation
+description: Use when the user asks Wefter to run, plan, audit, implement, review, guard, or validate a release work unit task-by-task.
+---
+
+# Work Unit Implementation
+
+Use this skill when the user wants to implement one release work unit through Wefter's gated plan -> review -> repair -> task implementation -> task review -> final validation loop.
+
+Local workflow files:
+
+- `{{CONFIG_FILE}}`: Wefter installation configuration.
+- `{{WORK_UNIT_CONFIG_PATH}}`: work-unit workflow configuration.
+- `{{WORK_UNIT_LENSES_PATH}}`: work-unit plan audit lenses and variants.
+- `{{WORK_UNIT_ARTIFACT_ROOT}}`: generated run artifacts.
+
+Operational rules:
+
+- Do not implement code directly from `WORK_UNITS.md`.
+- Create or resume a run with `/wefter-run-work-unit`.
+- Plan the work unit first, then run adversarial plan review, consolidation, validation and repair.
+- Apply the configured gate before publishing candidate artifacts or editing code.
+- Execute one task at a time using TDD where applicable.
+- Use `wefter work-unit guard` before review, before advancing to the next task and before final validation.
+- Every task review must include a valid `## Machine Result` JSON block.

@@ -38,7 +38,7 @@ Workflow modules live under `src/workflows/<workflow-id>/` and expose `workflow.
 - `technical-shaping`
 - `work-unit-implementation`
 
-`documentation-audit` is executable end-to-end through the CLI. `work-unit-implementation` can generate planning runs and enforce deterministic task/review guards while OpenCode agents are being added.
+`documentation-audit` is executable end-to-end through the CLI. `work-unit-implementation` can generate planning runs, install OpenCode agents, enforce deterministic task/review guards and validate completed work units.
 
 ## Documentation Audit Run
 
