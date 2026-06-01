@@ -35,6 +35,34 @@ function writeText(filePath, content) {
   fs.writeFileSync(filePath, content, "utf8");
 }
 
+function writeJsonFile(filePath, value) {
+  writeText(filePath, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function smallProfile(title = "One lens") {
+  return {
+    version: 1,
+    corpus: {
+      include: ["README.md"],
+      exclude: [".audit/**"]
+    },
+    variants: [
+      {
+        id: "one-variant",
+        title: "One variant",
+        instruction: "Find one type of issue."
+      }
+    ],
+    lenses: [
+      {
+        id: "one-lens",
+        title,
+        focus: "Inspect one focused area."
+      }
+    ]
+  };
+}
+
 function initTarget(name = "target") {
   const target = makeTarget(name);
   run(["init", "--target", target, "--yes", "--force"]);
@@ -87,6 +115,25 @@ test("docs audit dry-run and real run generate expected artifacts", () => {
   assert.ok(fs.existsSync(path.join(target, ".audit", "wefter", "documentation-audit", "audit-run", "prompts", "consolidate.md")));
 });
 
+test("profile import and docs audit profile override preserve custom audit profiles", () => {
+  const target = initTarget("profile-import");
+  const sourceProfilePath = path.join("docs", "audits", "lenses.json");
+  const overrideProfilePath = path.join("docs", "audits", "override.json");
+  writeJsonFile(path.join(target, sourceProfilePath), smallProfile("Imported lens"));
+  writeJsonFile(path.join(target, overrideProfilePath), smallProfile("Override lens"));
+
+  run(["profile", "import", "--target", target, "--source", sourceProfilePath, "--force"]);
+  assert.equal(readJson(path.join(target, ".wefter", "workflows", "documentation-audit", "profile.json")).lenses[0].title, "Imported lens");
+
+  const dry = run(["docs", "audit", "--target", target, "--profile-path", overrideProfilePath, "--run-name", "override-dry", "--passes-per-lens", "1", "--dry-run"]);
+  assert.match(dry.stdout, /Auditor prompts to generate: 1/);
+
+  run(["docs", "audit", "--target", target, "--profile-path", overrideProfilePath, "--run-name", "override-run", "--passes-per-lens", "1"]);
+  const manifest = readJson(path.join(target, ".audit", "wefter", "documentation-audit", "override-run", "manifest.json"));
+  assert.equal(manifest.profilePath, overrideProfilePath.replaceAll("\\", "/"));
+  assert.equal(manifest.prompts.length, 1);
+});
+
 test("work-unit run dry-run and real run generate expected artifacts", () => {
   const target = initTarget("work-unit-run");
 
@@ -100,6 +147,10 @@ test("work-unit run dry-run and real run generate expected artifacts", () => {
   assert.equal(manifest.workUnitKey, "work-unit-00");
   assert.equal(manifest.prompts.planAudits.length, 2);
   assert.ok(fs.existsSync(path.join(target, ".audit", "wefter", "work-unit-implementation", "wu-run", "prompts", "plan.md")));
+  const readme = fs.readFileSync(path.join(target, ".audit", "wefter", "work-unit-implementation", "wu-run", "README.md"), "utf8");
+  assert.match(readme, /ReadyForReview/);
+  assert.match(readme, /ReadyForNextTask/);
+  assert.match(readme, /ReadyForFinalValidation/);
 });
 
 test("work-unit guard enforces task review loop", () => {
@@ -131,6 +182,7 @@ test("path safety rejects traversal and path-like run names", () => {
 
   assert.match(run(["init", "--target", makeTarget("bad-init"), "--yes", "--profile-path", "../profile.json"], { expectFailure: true }).stderr, /must not be empty or contain '\.\.'/);
   assert.match(run(["docs", "audit", "--target", target, "--run-name", "..\\bad"], { expectFailure: true }).stderr, /plain directory name/);
+  assert.match(run(["profile", "import", "--target", target, "--source", "../lenses.json"], { expectFailure: true }).stderr, /must not be empty or contain '\.\.'/);
   assert.match(run(["docs", "repair", "--target", target, "--audit-report", "../audit-report.md"], { expectFailure: true }).stderr, /must not be empty or contain '\.\.'/);
   assert.match(run(["work-unit", "run", "--target", target, "--config-path", "../config.json"], { expectFailure: true }).stderr, /must not be empty or contain '\.\.'/);
   assert.match(run(["work-unit", "guard", "--target", target, "--run-root", outside], { expectFailure: true }).stderr, /resolves outside the target repository/);

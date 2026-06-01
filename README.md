@@ -60,6 +60,8 @@ CLI checks are also available:
 ```bash
 wefter doctor
 wefter docs audit --passes-per-lens 1 --max-audits 12
+wefter docs audit --profile-path docs/audits/lenses.json --passes-per-lens 1 --max-audits 12
+wefter profile import --source docs/audits/lenses.json --force
 wefter docs repair --audit-report .audit/wefter/documentation-audit/<run-id>/final/final-documentation-audit-report.md
 wefter new-run documentation-audit --passes-per-lens 1 --max-audits 12
 ```
@@ -94,6 +96,8 @@ wefter new-run documentation-audit --passes-per-lens 1 --max-audits 12
 
 - Installed audit agents render permissions using the configured artifact root and profile path.
 - `docs audit` writes through a staging directory and only moves the final run after all files are generated.
+- `docs audit --profile-path` can use a repository-specific audit profile for one run without changing `wefter.config.json`.
+- `profile import` validates and copies an existing repository-relative audit profile into the configured Wefter profile path.
 - `docs repair` writes through a staging directory and requires an existing repository-relative audit report path.
 - Paths in `wefter.config.json` must be relative to the target repository and must not contain `..`.
 - Run names are plain directory names and cannot contain path separators.

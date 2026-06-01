@@ -27,6 +27,18 @@ Validate an installation with:
 wefter doctor
 ```
 
+Import an existing repository-specific documentation audit profile, such as a legacy `docs/audits/lenses.json`, with:
+
+```bash
+wefter profile import --source docs/audits/lenses.json --force
+```
+
+Run a one-off audit with a repository-specific profile without changing config:
+
+```bash
+wefter docs audit --profile-path docs/audits/lenses.json --passes-per-lens 1 --max-audits 12
+```
+
 Generate a documentation repair run from a validated audit report with:
 
 ```bash

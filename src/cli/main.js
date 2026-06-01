@@ -30,12 +30,13 @@ function printHelp() {
 
 Usage:
   wefter init [--yes] [--force] [--target <path>] [--profile-path <path>] [--artifact-root <path>] [--template-root <path>] [--process-doc-path <path>] [--runner-command <command>]
-  wefter docs audit [--target <path>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--dry-run]
+  wefter docs audit [--target <path>] [--profile-path <path>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--dry-run]
   wefter docs repair [--target <path>] --audit-report <path> [--run-name <name>] [--dry-run]
   wefter work-unit run [--target <path>] [--work-unit-id <id>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--config-path <path>] [--lenses-path <path>] [--dry-run]
   wefter work-unit guard [--target <path>] [--run-id <id> | --run-root <path>] [--task-id <id>] [--mode Status|ReadyForReview|ReadyForNextTask|ReadyForFinalValidation] [--config-path <path>] [--json]
-  wefter new-run documentation-audit [--target <path>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--dry-run]
+  wefter new-run documentation-audit [--target <path>] [--profile-path <path>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--dry-run]
   wefter profile scaffold [--target <path>] [--force]
+  wefter profile import [--target <path>] --source <path> [--force]
   wefter doctor [--target <path>]
 
 Commands:
@@ -46,6 +47,7 @@ Commands:
   work-unit guard   Validate task/review loop state for a work-unit run.
   new-run           Generate one workflow run. Currently supports documentation-audit.
   profile scaffold  Create a heuristic starter audit profile for the current repository.
+  profile import    Import a repository-relative documentation audit profile into the configured profile path.
   doctor            Validate local installation and configuration.
 `);
 }
@@ -822,7 +824,9 @@ function assertIncludes(content, expected, label) {
 function commandNewRun(flags) {
   const targetRoot = resolveTarget(flags);
   const config = readConfig(targetRoot);
-  const profilePath = path.join(targetRoot, config.profilePath);
+  const profilePathRelative = normalizeRelativePath(flags["profile-path"] || config.profilePath, "profilePath");
+  const profilePath = path.join(targetRoot, profilePathRelative);
+  ensureInside(targetRoot, profilePath, "profilePath");
   const profile = readJson(profilePath, "audit profile");
   validateProfile(profile);
 
@@ -934,7 +938,7 @@ function commandNewRun(flags) {
     generatedAt: new Date().toISOString(),
     passesPerLens,
     maxAudits,
-    profilePath: config.profilePath,
+    profilePath: profilePathRelative,
     corpus: profile.corpus,
     counts: {
       lenses: profile.lenses.length,
@@ -1308,7 +1312,7 @@ function commandWorkUnitRun(flags) {
     }
   });
 
-  fs.writeFileSync(path.join(stagingRunRoot, "README.md"), `# Work Unit Implementation Run\n\nRun: ${runName}\nWork unit: ${workUnitKey}\nRelease: ${workUnitConfig.releaseId}\n\n## Counts\n\n- Lenses: ${lensesConfig.lenses.length}\n- Variants: ${lensesConfig.variants.length}\n- Passes per lens/variant: ${passesPerLens}\n- Plan auditor prompts: ${combinations.length}\n\n## Execution Order\n\n1. Execute prompts/plan.md with the work-unit planner.\n2. Execute prompts/plan-auditors/${workUnitKey}/*.md with plan auditors.\n3. Execute prompts/consolidate-plan.md.\n4. Execute prompts/validate-plan.md.\n5. Execute prompts/repair-plan.md.\n6. Review final/approved-artifacts/${workUnitKey}/ and apply gate policy.\n7. Publish approved artifacts to ${versionedWorkUnitDir} and ${versionedDecisionLog}.\n8. Execute prompts/implement-tasks.md task by task only after approval.\n9. Review each task and validate the work unit after all task reviews pass.\n`, "utf8");
+  fs.writeFileSync(path.join(stagingRunRoot, "README.md"), `# Work Unit Implementation Run\n\nRun: ${runName}\nWork unit: ${workUnitKey}\nRelease: ${workUnitConfig.releaseId}\n\n## Counts\n\n- Lenses: ${lensesConfig.lenses.length}\n- Variants: ${lensesConfig.variants.length}\n- Passes per lens/variant: ${passesPerLens}\n- Plan auditor prompts: ${combinations.length}\n\n## Execution Order\n\n1. Execute prompts/plan.md with the work-unit planner.\n2. Execute prompts/plan-auditors/${workUnitKey}/*.md with plan auditors.\n3. Execute prompts/consolidate-plan.md.\n4. Execute prompts/validate-plan.md.\n5. Execute prompts/repair-plan.md.\n6. Review final/approved-artifacts/${workUnitKey}/ and apply gate policy.\n7. Publish approved artifacts to ${versionedWorkUnitDir} and ${versionedDecisionLog}.\n8. Execute prompts/implement-tasks.md task by task only after approval.\n9. After each implementation or correction, run \`wefter work-unit guard --run-id ${runName} --task-id <task-id> --mode ReadyForReview\`.\n10. Review the task with prompts/review-task.md.\n11. After each task review, run \`wefter work-unit guard --run-id ${runName} --task-id <task-id> --mode ReadyForNextTask\`.\n12. If the guard reports Needs Fix, correct the same task and repeat implementation guard -> review -> next-task guard.\n13. If the guard reports Blocked, pause the work unit for human decision or specification repair.\n14. Before final validation, run \`wefter work-unit guard --run-id ${runName} --mode ReadyForFinalValidation\`.\n15. Execute prompts/validate-work-unit.md only when all tasks pass review and the final-validation guard passes.\n`, "utf8");
 
   if (fs.existsSync(runRoot)) {
     throw new Error(`Run directory was created before finalizing the staging move: ${runRoot}`);
@@ -1589,6 +1593,32 @@ function commandProfileScaffold(flags) {
   console.log(`Wrote starter audit profile: ${profilePath}`);
 }
 
+function commandProfileImport(flags) {
+  const targetRoot = resolveTarget(flags);
+  const config = readConfig(targetRoot);
+  if (!flags.source) {
+    throw new Error("--source is required for profile import.");
+  }
+
+  const sourceRelative = normalizeRelativePath(flags.source, "source");
+  const sourcePath = path.join(targetRoot, sourceRelative);
+  const destinationPath = path.join(targetRoot, config.profilePath);
+  ensureInside(targetRoot, sourcePath, "source");
+  ensureInside(targetRoot, destinationPath, "profilePath");
+
+  if (!fs.existsSync(sourcePath)) {
+    throw new Error(`Source profile not found: ${sourcePath}`);
+  }
+  if (fs.existsSync(destinationPath) && !flags.force) {
+    throw new Error(`Profile already exists: ${destinationPath}. Use --force to overwrite.`);
+  }
+
+  const profile = readJson(sourcePath, "source audit profile");
+  validateProfile(profile);
+  writeJson(destinationPath, profile);
+  console.log(`Imported audit profile from ${sourceRelative} to ${config.profilePath}`);
+}
+
 function commandDoctor(flags) {
   const targetRoot = resolveTarget(flags);
   const config = readConfig(targetRoot);
@@ -1812,6 +1842,10 @@ export async function main(argv = process.argv.slice(2)) {
   }
   if (command === "profile" && subcommand === "scaffold") {
     commandProfileScaffold(flags);
+    return;
+  }
+  if (command === "profile" && subcommand === "import") {
+    commandProfileImport(flags);
     return;
   }
   if (command === "doctor") {

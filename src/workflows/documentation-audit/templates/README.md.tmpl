@@ -41,6 +41,7 @@ Runtime runs may be ignored if you do not want to version generated audit artifa
 
 ```bash
 {{RUNNER_COMMAND}} doctor
-{{RUNNER_COMMAND}} new-run --passes-per-lens 3
-{{RUNNER_COMMAND}} new-run --passes-per-lens 1 --max-audits 12
+{{RUNNER_COMMAND}} new-run documentation-audit --passes-per-lens 3
+{{RUNNER_COMMAND}} new-run documentation-audit --passes-per-lens 1 --max-audits 12
+{{RUNNER_COMMAND}} profile import --source docs/audits/lenses.json --force
 ```

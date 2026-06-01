@@ -10,5 +10,5 @@
     ],
     "opencode": ["/wefter-run-work-unit"]
   },
-  "source": "Port the existing reference workflow semantics to Node before marking available. The standalone Wefter terminology is work unit."
+  "source": "Ported from the reference implementation-slice workflow semantics. The standalone Wefter terminology is work unit."
 }
