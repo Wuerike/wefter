@@ -74,6 +74,14 @@ function packageRoot() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 }
 
+function workflowPackageRoot(workflowId) {
+  return path.join(packageRoot(), "src/workflows", workflowId);
+}
+
+function documentationAuditTemplateRoot() {
+  return path.join(workflowPackageRoot("documentation-audit"), "templates");
+}
+
 function resolveTarget(flags) {
   return path.resolve(flags.target || process.cwd());
 }
@@ -565,18 +573,19 @@ async function commandInit(flags) {
   }, flags.force);
 
   const root = packageRoot();
+  const auditTemplates = documentationAuditTemplateRoot();
   copyRenderedTemplate(path.join(root, "src/workflows/documentation-audit/workflow.json"), path.join(targetRoot, config.workflowRoot, "documentation-audit/workflow.json"), values, flags.force);
   for (const workflowId of ["product-shaping", "documentation-repair", "technical-shaping", "implementation-slice-loop"]) {
     copyDirectory(path.join(root, "src/workflows", workflowId), path.join(targetRoot, config.workflowRoot, workflowId), flags.force);
   }
-  copyRenderedTemplate(path.join(root, "templates/opencode/agent/doc-audit-orchestrator.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-orchestrator.md"), values, flags.force);
-  copyRenderedTemplate(path.join(root, "templates/opencode/agent/doc-auditor.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-auditor.md"), values, flags.force);
-  copyRenderedTemplate(path.join(root, "templates/opencode/agent/doc-audit-consolidator.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-consolidator.md"), values, flags.force);
-  copyRenderedTemplate(path.join(root, "templates/opencode/agent/doc-audit-validator.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-validator.md"), values, flags.force);
-  copyRenderedTemplate(path.join(root, "templates/opencode/agent/doc-audit-profile-builder.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-profile-builder.md"), values, flags.force);
-  copyRenderedTemplate(path.join(root, "templates/opencode/skills/documentation-audit/SKILL.md.tmpl"), path.join(targetRoot, ".opencode/skills/documentation-audit/SKILL.md"), values, flags.force);
-  copyDirectory(path.join(root, "templates/audit/templates"), path.join(targetRoot, config.templateRoot), flags.force);
-  copyRenderedTemplate(path.join(root, "templates/audit/README.md.tmpl"), path.join(targetRoot, config.processDocPath), values, flags.force);
+  copyRenderedTemplate(path.join(auditTemplates, "opencode/agent/wefter-doc-audit-orchestrator.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-orchestrator.md"), values, flags.force);
+  copyRenderedTemplate(path.join(auditTemplates, "opencode/agent/wefter-doc-auditor.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-auditor.md"), values, flags.force);
+  copyRenderedTemplate(path.join(auditTemplates, "opencode/agent/wefter-doc-audit-consolidator.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-consolidator.md"), values, flags.force);
+  copyRenderedTemplate(path.join(auditTemplates, "opencode/agent/wefter-doc-audit-validator.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-validator.md"), values, flags.force);
+  copyRenderedTemplate(path.join(auditTemplates, "opencode/agent/wefter-doc-audit-profile-builder.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-profile-builder.md"), values, flags.force);
+  copyRenderedTemplate(path.join(auditTemplates, "opencode/skills/documentation-audit/SKILL.md.tmpl"), path.join(targetRoot, ".opencode/skills/documentation-audit/SKILL.md"), values, flags.force);
+  copyDirectory(path.join(auditTemplates, "prompts"), path.join(targetRoot, config.templateRoot), flags.force);
+  copyRenderedTemplate(path.join(auditTemplates, "README.md.tmpl"), path.join(targetRoot, config.processDocPath), values, flags.force);
   mergeOpencodeConfig(targetRoot, config, flags.force);
 
   const profileFullPath = path.join(targetRoot, config.profilePath);

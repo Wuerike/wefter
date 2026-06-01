@@ -95,7 +95,6 @@ wefter new-run documentation-audit --passes-per-lens 1 --max-audits 12
 Next steps before a stable release:
 
 1. Port `implementation-slice-loop` guards and run generation from PowerShell to Node.
-2. Move documentation-audit templates from legacy `templates/` into `src/workflows/documentation-audit/` after the CLI is modularized.
-3. Add automated tests around `init`, `doctor` and `docs audit`.
-4. Add an uninstall or manifest-based cleanup flow.
-5. Harden release and package publishing automation.
+2. Add automated tests around `init`, `doctor` and `docs audit`.
+3. Add an uninstall or manifest-based cleanup flow.
+4. Harden release and package publishing automation.
