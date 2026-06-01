@@ -7,7 +7,7 @@
     "wefter": "./bin/wefter.js"
   },
   "scripts": {
-    "check": "node --check bin/wefter.js",
+    "check": "node --check bin/wefter.js && node --check src/cli/main.js",
     "doctor:self": "node bin/wefter.js --help"
   },
   "keywords": [
