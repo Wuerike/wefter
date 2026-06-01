@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wefter.dev/schemas/wefter.config.schema.json",
+  "type": "object",
+  "required": ["version", "workflowRoot", "profilePath", "artifactRoot", "templateRoot", "processDocPath", "runnerCommand", "workflows"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1 },
+    "workflowRoot": { "type": "string", "minLength": 1 },
+    "profilePath": { "type": "string", "minLength": 1 },
+    "artifactRoot": { "type": "string", "minLength": 1 },
+    "templateRoot": { "type": "string", "minLength": 1 },
+    "processDocPath": { "type": "string", "minLength": 1 },
+    "runnerCommand": { "type": "string", "minLength": 1 },
+    "workflows": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["status", "enabled"],
+        "properties": {
+          "status": { "enum": ["available", "planned"] },
+          "enabled": { "type": "boolean" },
+          "profilePath": { "type": "string", "minLength": 1 },
+          "configPath": { "type": "string", "minLength": 1 },
+          "lensesPath": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

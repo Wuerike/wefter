@@ -1,18 +1,18 @@
 ---
-name: documentation-audit-loop
-description: Use when the user asks to audit, cross-check, consolidate, validate, generate an audit profile, or run redundant consistency analyses across project documentation.
+name: documentation-audit
+description: Use when the user asks Wefter to audit docs, cross-check, consolidate, validate, generate an audit profile, or run redundant consistency analyses across project documentation.
 ---
 
-# Documentation Audit Loop
+# Documentation Audit
 
 Use this skill when the user wants a rigorous documentation consistency audit across the project.
 
 Local workflow files:
 
-- `doc-auditor.config.json`: local paths and installation configuration.
+- `{{CONFIG_FILE}}`: local paths and installation configuration.
 - `{{PROFILE_PATH}}`: project-specific audit profile with corpus, variants and lenses.
 - `{{PROCESS_DOC_PATH}}`: process and execution rules.
-- `{{TEMPLATE_ROOT}}`: generic prompt templates used by `doc-auditor new-run`.
+- `{{TEMPLATE_ROOT}}`: generic prompt templates used by `wefter docs audit`.
 
 Operational rules:
 
@@ -26,13 +26,13 @@ Operational rules:
 Recommended commands:
 
 ```text
-/doc-audit-generate-profile
+/wefter-generate-doc-audit-profile
 ```
 
 Use this when the audit profile is missing, outdated or too generic. It inspects the repository and creates or proposes `{{PROFILE_PATH}}`.
 
 ```text
-/doc-audit-full-run
+/wefter-audit-docs
 ```
 
 This is the default audit entry point. It creates or resumes a run, executes auditor waves, consolidates raw findings, validates candidates adversarially, and reports the final artifact path.

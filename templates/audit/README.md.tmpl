@@ -1,10 +1,10 @@
-# Documentation Audit Workflow
+# Wefter Documentation Audit Workflow
 
-This directory documents the local documentation audit workflow installed by `doc-auditor`.
+This directory documents the local documentation audit workflow installed by Wefter for OpenCode.
 
 ## Local Configuration
 
-- Config file: `doc-auditor.config.json`
+- Config file: `{{CONFIG_FILE}}`
 - Audit profile: `{{PROFILE_PATH}}`
 - Artifact root: `{{ARTIFACT_ROOT}}`
 - Prompt templates: `{{TEMPLATE_ROOT}}`
@@ -14,8 +14,8 @@ The audit profile is the project-specific part of the workflow. It defines the c
 
 ## Workflow
 
-1. Generate or update the audit profile with `/doc-audit-generate-profile` when needed.
-2. Run `/doc-audit-full-run` for the end-to-end audit.
+1. Generate or update the audit profile with `/wefter-generate-doc-audit-profile` when needed.
+2. Run `/wefter-audit-docs` for the end-to-end audit.
 3. Review the final report under the configured artifact root.
 4. Fix documentation in a separate workflow after validating findings.
 

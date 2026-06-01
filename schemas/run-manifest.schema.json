@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wefter.dev/schemas/run-manifest.schema.json",
+  "type": "object",
+  "required": ["version", "runId", "generatedAt", "paths"],
+  "properties": {
+    "version": { "const": 1 },
+    "workflowId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "runId": { "type": "string", "minLength": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "paths": { "type": "object" }
+  },
+  "additionalProperties": true
+}

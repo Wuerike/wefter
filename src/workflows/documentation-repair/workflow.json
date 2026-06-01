@@ -1,0 +1,10 @@
+{
+  "id": "documentation-repair",
+  "status": "planned",
+  "title": "Documentation Repair",
+  "summary": "Repairs documentation from validated audit reports while preserving source-of-truth boundaries and human decision gates.",
+  "commands": {
+    "cli": ["wefter docs repair"],
+    "opencode": ["/wefter-repair-docs"]
+  }
+}

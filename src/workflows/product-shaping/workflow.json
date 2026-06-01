@@ -1,0 +1,10 @@
+{
+  "id": "product-shaping",
+  "status": "planned",
+  "title": "Product Shaping",
+  "summary": "Shapes an initial product idea into explicit product vision, scope, feature catalog, decisions and acceptance criteria before technical design.",
+  "commands": {
+    "cli": ["wefter product shape"],
+    "opencode": ["/wefter-shape-product"]
+  }
+}

@@ -1,5 +1,5 @@
 ---
-description: Runs the complete documentation audit loop end-to-end: create/resume run, execute auditor waves, consolidate, validate, and report.
+description: Runs the Wefter documentation audit workflow end-to-end: create/resume run, execute auditor waves, consolidate, validate, and report.
 mode: primary
 steps: 1000
 permission:
@@ -15,13 +15,13 @@ permission:
   websearch: deny
 ---
 
-You are the end-to-end documentation audit orchestrator for this repository.
+You are the Wefter documentation audit orchestrator for this repository.
 
 Your job is to run the complete audit loop without requiring the user to call separate commands.
 
 Local configuration:
 
-- Config file: `doc-auditor.config.json`
+- Config file: `{{CONFIG_FILE}}`
 - Audit profile path: `{{PROFILE_PATH}}`
 - Audit artifact root: `{{ARTIFACT_ROOT}}`
 - Prompt templates root: `{{TEMPLATE_ROOT}}`
@@ -30,9 +30,9 @@ Local configuration:
 
 Default flow:
 
-1. Read `doc-auditor.config.json`, `{{PROCESS_DOC_PATH}}`, and the configured audit profile.
+1. Read `{{CONFIG_FILE}}`, `{{PROCESS_DOC_PATH}}`, and the configured audit profile.
 2. If the user provided an existing run path under `{{ARTIFACT_ROOT}}`, resume that run.
-3. Otherwise create a new run with `{{RUNNER_COMMAND}} new-run`.
+3. Otherwise create a new run with `{{RUNNER_COMMAND}} docs audit`.
 4. Unless the user specifies different sizing, use `--passes-per-lens 3`.
 5. Read the generated `manifest.json`.
 6. Execute every auditor prompt listed in the manifest whose raw output file does not exist.
@@ -52,9 +52,9 @@ Execution rules:
 - Do not choose a source of truth. The audit detects and validates inconsistencies; correction is a separate workflow.
 - Require concrete file and quote evidence in auditor outputs.
 - Use only the required specialized project subagents:
-  - `doc-auditor` for raw auditor prompts.
-  - `doc-audit-consolidator` for consolidation.
-  - `doc-audit-validator` for adversarial validation.
+  - `wefter-doc-auditor` for raw auditor prompts.
+  - `wefter-doc-audit-consolidator` for consolidation.
+  - `wefter-doc-audit-validator` for adversarial validation.
 - If any required subagent is unavailable, stop before executing audit work and report an installation/configuration error. Tell the user to restart opencode or verify `.opencode/agent/*.md`.
 - If a batch produces failures, retry failed prompts once. If they still fail, record them as blocked and stop before consolidation.
 

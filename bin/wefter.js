@@ -8,12 +8,13 @@ import { stdin as input, stdout as output } from "node:process";
 import { fileURLToPath } from "node:url";
 
 const VERSION = "0.1.0";
-const CONFIG_FILE = "doc-auditor.config.json";
+const CONFIG_FILE = "wefter.config.json";
 const DEFAULTS = Object.freeze({
-  profilePath: ".doc-auditor/profile.json",
-  artifactRoot: ".doc-auditor/runs",
-  templateRoot: ".doc-auditor/templates",
-  processDocPath: ".doc-auditor/README.md"
+  workflowRoot: ".wefter/workflows",
+  profilePath: ".wefter/workflows/documentation-audit/profile.json",
+  artifactRoot: ".audit/wefter/documentation-audit",
+  templateRoot: ".wefter/workflows/documentation-audit/templates",
+  processDocPath: ".wefter/workflows/documentation-audit/README.md"
 });
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
@@ -25,17 +26,19 @@ const REQUIRED_TEMPLATE_FILES = Object.freeze([
 ]);
 
 function printHelp() {
-  console.log(`doc-auditor ${VERSION}
+  console.log(`wefter ${VERSION}
 
 Usage:
-  doc-auditor init [--yes] [--force] [--target <path>] [--profile-path <path>] [--artifact-root <path>] [--template-root <path>] [--process-doc-path <path>] [--runner-command <command>]
-  doc-auditor new-run [--target <path>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--dry-run]
-  doc-auditor profile scaffold [--target <path>] [--force]
-  doc-auditor doctor [--target <path>]
+  wefter init [--yes] [--force] [--target <path>] [--profile-path <path>] [--artifact-root <path>] [--template-root <path>] [--process-doc-path <path>] [--runner-command <command>]
+  wefter docs audit [--target <path>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--dry-run]
+  wefter new-run documentation-audit [--target <path>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--dry-run]
+  wefter profile scaffold [--target <path>] [--force]
+  wefter doctor [--target <path>]
 
 Commands:
   init              Install opencode agents, skill, commands, templates and local config.
-  new-run           Generate one audit run from the configured profile.
+  docs audit        Generate one documentation audit run from the configured profile.
+  new-run           Generate one workflow run. Currently supports documentation-audit.
   profile scaffold  Create a heuristic starter audit profile for the current repository.
   doctor            Validate local installation and configuration.
 `);
@@ -248,7 +251,7 @@ function writeJsonIfSafe(filePath, value, force) {
 function readConfig(targetRoot) {
   const configPath = path.join(targetRoot, CONFIG_FILE);
   if (!fs.existsSync(configPath)) {
-    throw new Error(`Missing ${CONFIG_FILE}. Run doc-auditor init first.`);
+    throw new Error(`Missing ${CONFIG_FILE}. Run wefter init first.`);
   }
 
   const config = readJson(configPath, CONFIG_FILE);
@@ -256,21 +259,57 @@ function readConfig(targetRoot) {
 }
 
 function normalizeConfig(config) {
-  assertObject(config, "doc-auditor.config.json");
-  assertAllowedKeys(config, "doc-auditor.config.json", ["$schema", "version", "profilePath", "artifactRoot", "templateRoot", "processDocPath", "runnerCommand"]);
+  assertObject(config, CONFIG_FILE);
+  assertAllowedKeys(config, CONFIG_FILE, ["$schema", "version", "workflowRoot", "profilePath", "artifactRoot", "templateRoot", "processDocPath", "runnerCommand", "workflows"]);
 
   if (config.version !== 1) {
-    throw new Error("doc-auditor.config.json must have version: 1.");
+    throw new Error(`${CONFIG_FILE} must have version: 1.`);
   }
+
+  const workflowRoot = normalizeRelativePath(config.workflowRoot || DEFAULTS.workflowRoot, "workflowRoot");
+  const workflows = config.workflows || defaultWorkflowRegistry();
+  normalizeWorkflowRegistry(workflows);
 
   return {
     version: 1,
+    workflowRoot,
     profilePath: normalizeRelativePath(config.profilePath, "profilePath"),
     artifactRoot: normalizeRelativePath(config.artifactRoot, "artifactRoot"),
     templateRoot: normalizeRelativePath(config.templateRoot, "templateRoot"),
     processDocPath: normalizeRelativePath(config.processDocPath, "processDocPath"),
-    runnerCommand: normalizeRunnerCommand(config.runnerCommand, "runnerCommand")
+    runnerCommand: normalizeRunnerCommand(config.runnerCommand, "runnerCommand"),
+    workflows
   };
+}
+
+function defaultWorkflowRegistry() {
+  return {
+    "product-shaping": { status: "planned", enabled: false },
+    "documentation-audit": { status: "available", enabled: true },
+    "documentation-repair": { status: "planned", enabled: false },
+    "technical-shaping": { status: "planned", enabled: false },
+    "implementation-slice-loop": { status: "planned", enabled: false }
+  };
+}
+
+function normalizeWorkflowRegistry(workflows) {
+  assertObject(workflows, "workflows");
+  for (const [workflowId, workflow] of Object.entries(workflows)) {
+    requireId(workflowId, `workflows.${workflowId}`);
+    assertObject(workflow, `workflows.${workflowId}`);
+    assertAllowedKeys(workflow, `workflows.${workflowId}`, ["status", "enabled", "profilePath", "configPath", "lensesPath"]);
+    if (!["available", "planned"].includes(workflow.status)) {
+      throw new Error(`workflows.${workflowId}.status must be available or planned.`);
+    }
+    if (typeof workflow.enabled !== "boolean") {
+      throw new Error(`workflows.${workflowId}.enabled must be boolean.`);
+    }
+    for (const key of ["profilePath", "configPath", "lensesPath"]) {
+      if (workflow[key] !== undefined) {
+        normalizeRelativePath(workflow[key], `workflows.${workflowId}.${key}`);
+      }
+    }
+  }
 }
 
 async function promptForValue(rl, label, defaultValue) {
@@ -327,19 +366,19 @@ function mergeOpencodeConfig(targetRoot, config, force) {
 
   existing.command = existing.command || {};
   const fullRunCommand = {
-    description: "Run the full documentation audit loop end-to-end.",
-    agent: "doc-audit-orchestrator",
-    template: `Run the complete documentation audit workflow end-to-end. Read doc-auditor.config.json first. If the user provided an existing run path, resume it. Otherwise create a new run with ${config.runnerCommand} new-run. Unless the user provided different sizing, use --passes-per-lens 3. Execute all auditor prompts in parallel batches, consolidate, validate adversarially, and report the final output path. Do not edit source documentation.`
+    description: "Run the Wefter documentation audit workflow end-to-end.",
+    agent: "wefter-doc-audit-orchestrator",
+    template: `Run the complete Wefter documentation audit workflow end-to-end. Read ${CONFIG_FILE} first. If the user provided an existing run path, resume it. Otherwise create a new run with ${config.runnerCommand} docs audit. Unless the user provided different sizing, use --passes-per-lens 3. Execute all auditor prompts in parallel batches, consolidate, validate adversarially, and report the final output path. Do not edit source documentation.`
   };
   const generateProfileCommand = {
-    description: "Inspect the repository and create or update the documentation audit profile.",
-    agent: "doc-audit-profile-builder",
-    template: "Inspect this repository and create or update the documentation audit profile defined by doc-auditor.config.json. If the profile already exists, write a proposal under the configured artifact root instead of overwriting it unless the user explicitly asked to replace it."
+    description: "Inspect the repository and create or update the Wefter documentation audit profile.",
+    agent: "wefter-doc-audit-profile-builder",
+    template: `Inspect this repository and create or update the documentation audit profile defined by ${CONFIG_FILE}. If the profile already exists, write a proposal under the configured artifact root instead of overwriting it unless the user explicitly asked to replace it.`
   };
 
   for (const [name, nextValue] of Object.entries({
-    "doc-audit-full-run": fullRunCommand,
-    "doc-audit-generate-profile": generateProfileCommand
+    "wefter-audit-docs": fullRunCommand,
+    "wefter-generate-doc-audit-profile": generateProfileCommand
   })) {
     if (existing.command[name] && JSON.stringify(existing.command[name]) !== JSON.stringify(nextValue) && !force) {
       throw new Error(`Refusing to overwrite existing opencode command '${name}'. Use --force to replace it.`);
@@ -488,6 +527,7 @@ async function commandInit(flags) {
 
   let profilePath = flags["profile-path"] || DEFAULTS.profilePath;
   let artifactRoot = flags["artifact-root"] || DEFAULTS.artifactRoot;
+  const workflowRoot = DEFAULTS.workflowRoot;
   const templateRoot = flags["template-root"] || DEFAULTS.templateRoot;
   const processDocPath = flags["process-doc-path"] || DEFAULTS.processDocPath;
   const runnerCommand = flags["runner-command"] || defaultRunnerCommand();
@@ -501,11 +541,13 @@ async function commandInit(flags) {
 
   const config = normalizeConfig({
     version: 1,
+    workflowRoot,
     profilePath,
     artifactRoot,
     templateRoot,
     processDocPath,
-    runnerCommand
+    runnerCommand,
+    workflows: defaultWorkflowRegistry()
   });
 
   const values = {
@@ -515,21 +557,26 @@ async function commandInit(flags) {
     TEMPLATE_ROOT: config.templateRoot,
     PROCESS_DOC_PATH: config.processDocPath,
     RUNNER_COMMAND: config.runnerCommand,
-    RUNNER_COMMAND_NEW_RUN_PATTERN: yamlSingleQuoted(`${config.runnerCommand} new-run*`)
+    CONFIG_FILE,
+    RUNNER_COMMAND_NEW_RUN_PATTERN: yamlSingleQuoted(`${config.runnerCommand}*`)
   };
 
   writeJsonIfSafe(path.join(targetRoot, CONFIG_FILE), {
-    "$schema": "https://raw.githubusercontent.com/wuerike/doc-auditor/main/schema/doc-auditor.config.schema.json",
+    "$schema": "./node_modules/@wefter/opencode/schemas/wefter.config.schema.json",
     ...config
   }, flags.force);
 
   const root = packageRoot();
-  copyRenderedTemplate(path.join(root, "templates/opencode/agent/doc-audit-orchestrator.md.tmpl"), path.join(targetRoot, ".opencode/agent/doc-audit-orchestrator.md"), values, flags.force);
-  copyRenderedTemplate(path.join(root, "templates/opencode/agent/doc-auditor.md.tmpl"), path.join(targetRoot, ".opencode/agent/doc-auditor.md"), values, flags.force);
-  copyRenderedTemplate(path.join(root, "templates/opencode/agent/doc-audit-consolidator.md.tmpl"), path.join(targetRoot, ".opencode/agent/doc-audit-consolidator.md"), values, flags.force);
-  copyRenderedTemplate(path.join(root, "templates/opencode/agent/doc-audit-validator.md.tmpl"), path.join(targetRoot, ".opencode/agent/doc-audit-validator.md"), values, flags.force);
-  copyRenderedTemplate(path.join(root, "templates/opencode/agent/doc-audit-profile-builder.md.tmpl"), path.join(targetRoot, ".opencode/agent/doc-audit-profile-builder.md"), values, flags.force);
-  copyRenderedTemplate(path.join(root, "templates/opencode/skills/documentation-audit-loop/SKILL.md.tmpl"), path.join(targetRoot, ".opencode/skills/documentation-audit-loop/SKILL.md"), values, flags.force);
+  copyRenderedTemplate(path.join(root, "src/workflows/documentation-audit/workflow.json"), path.join(targetRoot, config.workflowRoot, "documentation-audit/workflow.json"), values, flags.force);
+  for (const workflowId of ["product-shaping", "documentation-repair", "technical-shaping", "implementation-slice-loop"]) {
+    copyDirectory(path.join(root, "src/workflows", workflowId), path.join(targetRoot, config.workflowRoot, workflowId), flags.force);
+  }
+  copyRenderedTemplate(path.join(root, "templates/opencode/agent/doc-audit-orchestrator.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-orchestrator.md"), values, flags.force);
+  copyRenderedTemplate(path.join(root, "templates/opencode/agent/doc-auditor.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-auditor.md"), values, flags.force);
+  copyRenderedTemplate(path.join(root, "templates/opencode/agent/doc-audit-consolidator.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-consolidator.md"), values, flags.force);
+  copyRenderedTemplate(path.join(root, "templates/opencode/agent/doc-audit-validator.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-validator.md"), values, flags.force);
+  copyRenderedTemplate(path.join(root, "templates/opencode/agent/doc-audit-profile-builder.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-profile-builder.md"), values, flags.force);
+  copyRenderedTemplate(path.join(root, "templates/opencode/skills/documentation-audit/SKILL.md.tmpl"), path.join(targetRoot, ".opencode/skills/documentation-audit/SKILL.md"), values, flags.force);
   copyDirectory(path.join(root, "templates/audit/templates"), path.join(targetRoot, config.templateRoot), flags.force);
   copyRenderedTemplate(path.join(root, "templates/audit/README.md.tmpl"), path.join(targetRoot, config.processDocPath), values, flags.force);
   mergeOpencodeConfig(targetRoot, config, flags.force);
@@ -539,12 +586,12 @@ async function commandInit(flags) {
     writeJson(profileFullPath, defaultProfile(config));
   }
 
-  console.log(`Installed doc-auditor into ${targetRoot}`);
+  console.log(`Installed Wefter for OpenCode into ${targetRoot}`);
   console.log(`Profile: ${config.profilePath}`);
   console.log(`Artifacts: ${config.artifactRoot}`);
   console.log(`Runner command: ${config.runnerCommand}`);
   console.log(`Tip: add ${config.artifactRoot}/ to .gitignore if you do not want to track generated audit runs.`);
-  console.log("Restart opencode before using /doc-audit-full-run or /doc-audit-generate-profile.");
+  console.log("Restart opencode before using /wefter-audit-docs or /wefter-generate-doc-audit-profile.");
 }
 
 function readTextRequired(filePath) {
@@ -677,6 +724,7 @@ function commandNewRun(flags) {
 
   writeJson(path.join(stagingRunRoot, "manifest.json"), {
     version: 1,
+    workflowId: "documentation-audit",
     runId: runName,
     generatedAt: new Date().toISOString(),
     passesPerLens,
@@ -699,7 +747,7 @@ function commandNewRun(flags) {
     prompts: promptRecords
   });
 
-  fs.writeFileSync(path.join(stagingRunRoot, "README.md"), `# Documentation Audit Run\n\nRun: ${runName}\n\n## Counts\n\n- Lenses: ${profile.lenses.length}\n- Variants: ${profile.variants.length}\n- Passes per lens/variant: ${passesPerLens}\n- Auditor prompts: ${combinations.length}\n\n## Execution Order\n\n1. Execute auditor prompts from prompts/auditors/ and write outputs to raw/.\n2. Execute prompts/consolidate.md after raw outputs exist.\n3. Execute prompts/validate.md after consolidation exists.\n4. Review final/final-documentation-audit-report.md.\n\n## opencode Command\n\n- Use /doc-audit-full-run with this run path to execute or resume the end-to-end audit.\n`, "utf8");
+  fs.writeFileSync(path.join(stagingRunRoot, "README.md"), `# Documentation Audit Run\n\nRun: ${runName}\n\n## Counts\n\n- Lenses: ${profile.lenses.length}\n- Variants: ${profile.variants.length}\n- Passes per lens/variant: ${passesPerLens}\n- Auditor prompts: ${combinations.length}\n\n## Execution Order\n\n1. Execute auditor prompts from prompts/auditors/ and write outputs to raw/.\n2. Execute prompts/consolidate.md after raw outputs exist.\n3. Execute prompts/validate.md after consolidation exists.\n4. Review final/final-documentation-audit-report.md.\n\n## opencode Command\n\n- Use /wefter-audit-docs with this run path to execute or resume the end-to-end audit.\n`, "utf8");
 
   if (fs.existsSync(runRoot)) {
     throw new Error(`Run directory was created before finalizing the staging move: ${runRoot}`);
@@ -742,6 +790,7 @@ function commandDoctor(flags) {
   check("configured paths", () => {
     for (const [label, relativePath] of Object.entries({
       profilePath: config.profilePath,
+      workflowRoot: config.workflowRoot,
       artifactRoot: config.artifactRoot,
       templateRoot: config.templateRoot,
       processDocPath: config.processDocPath
@@ -757,13 +806,21 @@ function commandDoctor(flags) {
       }
     }
   });
+  check("workflow manifests", () => {
+    for (const workflowId of Object.keys(config.workflows)) {
+      const fullPath = path.join(targetRoot, config.workflowRoot, workflowId, "workflow.json");
+      if (!fs.existsSync(fullPath)) {
+        throw new Error(`Missing ${fullPath}`);
+      }
+    }
+  });
   check("opencode agents", () => {
     const agentFiles = [
-      "doc-audit-orchestrator.md",
-      "doc-auditor.md",
-      "doc-audit-consolidator.md",
-      "doc-audit-validator.md",
-      "doc-audit-profile-builder.md"
+      "wefter-doc-audit-orchestrator.md",
+      "wefter-doc-auditor.md",
+      "wefter-doc-audit-consolidator.md",
+      "wefter-doc-audit-validator.md",
+      "wefter-doc-audit-profile-builder.md"
     ];
     const posixGlob = `${config.artifactRoot}/**`;
     const windowsGlob = windowsPermissionGlob(config.artifactRoot);
@@ -776,13 +833,13 @@ function commandDoctor(flags) {
       assertIncludes(content, windowsGlob, `${file} Windows artifact permission`);
     }
 
-    const orchestrator = readTextRequired(path.join(targetRoot, ".opencode/agent/doc-audit-orchestrator.md"));
+    const orchestrator = readTextRequired(path.join(targetRoot, ".opencode/agent/wefter-doc-audit-orchestrator.md"));
     assertIncludes(orchestrator, CONFIG_FILE, "orchestrator config reference");
     assertIncludes(orchestrator, config.profilePath, "orchestrator profile path");
     assertIncludes(orchestrator, config.runnerCommand, "orchestrator runner command");
   });
   check("opencode skill", () => {
-    const skillPath = path.join(targetRoot, ".opencode/skills/documentation-audit-loop/SKILL.md");
+    const skillPath = path.join(targetRoot, ".opencode/skills/documentation-audit/SKILL.md");
     const content = readTextRequired(skillPath);
     assertNoPlaceholders(skillPath, content);
     assertIncludes(content, config.profilePath, "skill profile path");
@@ -791,8 +848,8 @@ function commandDoctor(flags) {
   });
   check("opencode commands", () => {
     const opencode = readJson(path.join(targetRoot, "opencode.json"), "opencode.json");
-    if (opencode.command?.["doc-audit-full-run"]?.agent !== "doc-audit-orchestrator" || opencode.command?.["doc-audit-generate-profile"]?.agent !== "doc-audit-profile-builder") {
-      throw new Error("Missing doc-audit opencode commands.");
+    if (opencode.command?.["wefter-audit-docs"]?.agent !== "wefter-doc-audit-orchestrator" || opencode.command?.["wefter-generate-doc-audit-profile"]?.agent !== "wefter-doc-audit-profile-builder") {
+      throw new Error("Missing Wefter documentation audit opencode commands.");
     }
     if (!Array.isArray(opencode.skills?.paths) || !opencode.skills.paths.includes(".opencode/skills")) {
       throw new Error("Missing .opencode/skills in opencode skills.paths.");
@@ -816,7 +873,7 @@ function commandDoctor(flags) {
     process.exitCode = 1;
     return;
   }
-  console.log("doc-auditor installation looks healthy.");
+  console.log("Wefter installation looks healthy.");
 }
 
 async function main() {
@@ -836,6 +893,13 @@ async function main() {
     return;
   }
   if (command === "new-run") {
+    if (subcommand && subcommand !== "documentation-audit") {
+      throw new Error(`Unsupported workflow for new-run: ${subcommand}`);
+    }
+    commandNewRun(flags);
+    return;
+  }
+  if (command === "docs" && subcommand === "audit") {
     commandNewRun(flags);
     return;
   }

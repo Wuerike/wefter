@@ -1,19 +1,21 @@
 {
-  "name": "doc-auditor",
+  "name": "@wefter/opencode",
   "version": "0.1.0",
-  "description": "Installable documentation audit workflow for opencode projects.",
+  "description": "Installable Wefter workflows for OpenCode projects.",
   "type": "module",
   "bin": {
-    "doc-auditor": "./bin/doc-auditor.js"
+    "wefter": "./bin/wefter.js"
   },
   "scripts": {
-    "check": "node --check bin/doc-auditor.js",
-    "doctor:self": "node bin/doc-auditor.js --help"
+    "check": "node --check bin/wefter.js",
+    "doctor:self": "node bin/wefter.js --help"
   },
   "keywords": [
     "opencode",
+    "wefter",
     "documentation",
     "audit",
+    "workflow",
     "llm"
   ],
   "license": "MIT",
@@ -22,8 +24,9 @@
   },
   "files": [
     "bin/",
+    "src/",
     "templates/",
-    "schema/",
+    "schemas/",
     "README.md"
   ]
 }

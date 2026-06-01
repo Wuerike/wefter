@@ -1,44 +1,48 @@
 # Architecture
 
-`doc-auditor` separates reusable audit infrastructure from repository-specific audit intent.
+Wefter separates reusable workflow infrastructure from repository-specific product, documentation and implementation intent.
 
 ## Reusable Engine
 
 The reusable engine contains:
 
 - CLI command runner.
-- opencode agents.
-- opencode skill.
+- Workflow manifests.
+- OpenCode agents and skills.
 - Generic prompt templates.
-- Config and profile schemas.
+- Config, profile and run schemas.
 
-These files should not encode any single product domain.
+These files must not encode any single product domain.
 
 ## Local Configuration
 
-`doc-auditor.config.json` stores installation choices for one repository:
+`wefter.config.json` stores installation choices for one repository:
 
-- `profilePath`: project-specific audit profile.
-- `artifactRoot`: generated run output root.
-- `templateRoot`: installed generic templates.
+- `workflowRoot`: versioned Wefter workflow files installed in the target repository.
+- `artifactRoot`: generated runtime output root for the currently available documentation audit workflow.
+- `profilePath`: project-specific documentation audit profile.
+- `templateRoot`: installed documentation audit prompt templates.
 - `processDocPath`: installed workflow documentation.
-- `runnerCommand`: command used by the orchestrator to invoke `doc-auditor new-run`.
+- `runnerCommand`: command used by OpenCode orchestrators to invoke Wefter.
+- `workflows`: registry of available and planned workflow IDs.
 
 Paths are repository-relative and validated before use.
 
-## Audit Profile
+## Workflow Modules
 
-The audit profile is the main project-specific artifact. It defines:
+Workflow modules live under `src/workflows/<workflow-id>/` and expose `workflow.json` as their contract. The initial architecture registers:
 
-- Corpus include/exclude globs.
-- Variants: ways to analyze the corpus.
-- Lenses: repository-specific consistency checks.
+- `product-shaping`
+- `documentation-audit`
+- `documentation-repair`
+- `technical-shaping`
+- `implementation-slice-loop`
 
-The profile builder agent can create the profile from repository inspection.
+Only `documentation-audit` is currently executable through the CLI. `implementation-slice-loop` is represented as a planned module while its existing PowerShell implementation is ported to Node.
 
-## Audit Run
+## Documentation Audit Run
 
-`doc-auditor new-run` reads config and profile, then writes a run under the configured artifact root.
+`wefter docs audit` reads config and profile, then writes a run under the configured artifact root.
 
 Run generation uses staging:
 
@@ -49,16 +53,16 @@ Run generation uses staging:
 
 This avoids exposing partially generated final runs after an interrupted creation.
 
-## opencode Integration
+## OpenCode Integration
 
 The installer writes:
 
-- `.opencode/agent/doc-audit-orchestrator.md`
-- `.opencode/agent/doc-auditor.md`
-- `.opencode/agent/doc-audit-consolidator.md`
-- `.opencode/agent/doc-audit-validator.md`
-- `.opencode/agent/doc-audit-profile-builder.md`
-- `.opencode/skills/documentation-audit-loop/SKILL.md`
-- `opencode.json` commands
+- `.opencode/agent/wefter-doc-audit-orchestrator.md`
+- `.opencode/agent/wefter-doc-auditor.md`
+- `.opencode/agent/wefter-doc-audit-consolidator.md`
+- `.opencode/agent/wefter-doc-audit-validator.md`
+- `.opencode/agent/wefter-doc-audit-profile-builder.md`
+- `.opencode/skills/documentation-audit/SKILL.md`
+- `opencode.json` commands `/wefter-audit-docs` and `/wefter-generate-doc-audit-profile`
 
-opencode must be restarted after installation because configuration is loaded once at startup.
+OpenCode must be restarted after installation because configuration is loaded once at startup.
