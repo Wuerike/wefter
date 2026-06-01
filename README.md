@@ -25,7 +25,7 @@ runtime artifacts: .audit/wefter/
 | `documentation-audit` | Available | Run redundant, adversarial documentation consistency audits. |
 | `documentation-repair` | Planned | Repair docs from a validated audit report without mixing detection and correction. |
 | `technical-shaping` | Planned | Convert product docs into explicit technical decisions and implementation constraints. |
-| `work-unit-implementation` | Partial | Generate planning runs for one release work unit; guards and agents are next. |
+| `work-unit-implementation` | Partial | Generate planning runs and enforce task/review guards; OpenCode agents are next. |
 
 ## Local Development
 
@@ -99,8 +99,7 @@ wefter new-run documentation-audit --passes-per-lens 1 --max-audits 12
 
 Next steps before a stable release:
 
-1. Port `wefter work-unit guard` from the existing deterministic guard semantics.
-2. Add OpenCode agents and orchestrator for work-unit implementation.
-3. Add automated tests around `init`, `doctor`, `docs audit` and `work-unit run`.
-4. Add an uninstall or manifest-based cleanup flow.
-5. Harden release and package publishing automation.
+1. Add OpenCode agents and orchestrator for work-unit implementation.
+2. Add automated tests around `init`, `doctor`, `docs audit`, `work-unit run` and `work-unit guard`.
+3. Add installation manifest/uninstall support.
+4. Harden release and package publishing automation.

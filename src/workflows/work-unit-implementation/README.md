@@ -1,6 +1,6 @@
 # Work Unit Implementation
 
-Wefter module for implementing one release work unit at a time. Run generation is available; guards and OpenCode agents are still being ported.
+Wefter module for implementing one release work unit at a time. Run generation and deterministic guards are available; OpenCode agents are still being ported.
 
 The source workflow already exists in the reference project under older terminology. The standalone Wefter vocabulary is release -> work unit -> task. A work unit can be technical, functional, vertical, horizontal or validation-focused, as long as it has objective scope, dependencies, acceptance criteria and traceable tasks.
 
@@ -15,7 +15,7 @@ wefter work-unit guard --run-id <run-id> --mode ReadyForNextTask --task-id T00-0
 wefter work-unit guard --run-id <run-id> --mode ReadyForFinalValidation
 ```
 
-`wefter work-unit run` is implemented. `wefter work-unit guard` is the next step.
+`wefter work-unit run` and `wefter work-unit guard` are implemented. OpenCode agents and orchestration are the next step.
 
 ## Safety Rule
 
