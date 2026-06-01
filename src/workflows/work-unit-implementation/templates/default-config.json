@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "workflowName": "implementation-slice-loop",
-  "phaseId": "01_mvp",
-  "slicesDocument": "docs/phases/01_mvp/IMPLEMENTATION_SLICES.md",
+  "workflowName": "work-unit-implementation",
+  "releaseId": "01_mvp",
+  "workUnitsDocument": "docs/releases/01_mvp/WORK_UNITS.md",
   "sourceDocs": {
     "include": [
       "AGENTS.md",
@@ -17,20 +17,20 @@
       "docs/references/**"
     ]
   },
-  "runArtifactsRoot": ".audit/wefter/implementation-slice-loop",
+  "runArtifactsRoot": ".audit/wefter/work-unit-implementation",
   "versionedArtifacts": {
-    "executionRoot": "docs/phases/01_mvp/execution",
-    "decisionLogRoot": "docs/phases/01_mvp/decisions"
+    "executionRoot": "docs/releases/01_mvp/execution",
+    "decisionLogRoot": "docs/releases/01_mvp/decisions"
   },
-  "defaultSliceId": "0",
+  "defaultWorkUnitId": "0",
   "defaultPlanAuditPassesPerLens": 2,
   "gatePolicy": {
-    "mode": "structural-slices",
-    "structuralSlices": [
-      "slice-00",
-      "slice-01",
-      "slice-02",
-      "slice-03"
+    "mode": "structural-work-units",
+    "structuralWorkUnits": [
+      "work-unit-00",
+      "work-unit-01",
+      "work-unit-02",
+      "work-unit-03"
     ],
     "alwaysPauseOn": [
       "schema-or-migration-change",

@@ -11,6 +11,6 @@ Core rules:
 - Paths are target-repository relative and must not contain `..`.
 - Run directories are staged before becoming visible as final runs.
 - OpenCode agent permissions restrict write access to configured artifact paths.
-- Implementation work must be task-level, reviewed and validated before moving to the next slice.
+- Implementation work must be task-level, reviewed and validated before moving to the next work unit.
 
 OpenCode must be restarted after installing or changing agents, skills or commands.

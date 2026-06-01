@@ -36,9 +36,9 @@ Workflow modules live under `src/workflows/<workflow-id>/` and expose `workflow.
 - `documentation-audit`
 - `documentation-repair`
 - `technical-shaping`
-- `implementation-slice-loop`
+- `work-unit-implementation`
 
-Only `documentation-audit` is currently executable through the CLI. `implementation-slice-loop` is represented as a planned module while its existing PowerShell implementation is ported to Node.
+Only `documentation-audit` is currently executable through the CLI. `work-unit-implementation` is represented as a planned module while the existing reference workflow semantics are ported to Node.
 
 ## Documentation Audit Run
 

@@ -4,12 +4,12 @@
     {
       "id": "coverage-gaps",
       "title": "Coverage gaps",
-      "instruction": "Find requirements, acceptance criteria, domain rules or technical decisions that should appear in the slice plan but are missing or lack a verifiable task."
+      "instruction": "Find requirements, acceptance criteria, domain rules or technical decisions that should appear in the work-unit plan but are missing or lack a verifiable task."
     },
     {
       "id": "overreach-and-scope-leak",
       "title": "Overreach and scope leak",
-      "instruction": "Find tasks that implement items outside the slice, outside the phase scope or before required dependencies are in place."
+      "instruction": "Find tasks that implement items outside the work unit, outside the release scope or before required dependencies are in place."
     },
     {
       "id": "implementation-risk",
@@ -24,14 +24,14 @@
   ],
   "lenses": [
     {
-      "id": "slice-vs-source-docs",
-      "title": "Slice vs source docs",
-      "focus": "Compare the slice plan with slice, scope, domain, data contract, acceptance criteria and technical decision documents."
+      "id": "work-unit-vs-source-docs",
+      "title": "Work unit vs source docs",
+      "focus": "Compare the work-unit plan with release scope, domain, data contract, acceptance criteria and technical decision documents."
     },
     {
       "id": "traceability",
       "title": "Task-rule-test traceability",
-      "focus": "Verify that each task references rules, criteria, contracts and tests, and that every relevant slice item has a corresponding task."
+      "focus": "Verify that each task references rules, criteria, contracts and tests, and that every relevant work-unit item has a corresponding task."
     },
     {
       "id": "data-and-migrations",
@@ -51,7 +51,7 @@
     {
       "id": "sequencing-and-dependencies",
       "title": "Sequencing and dependencies",
-      "focus": "Evaluate whether task order respects dependencies between slices, avoids rework and does not postpone critical foundations."
+      "focus": "Evaluate whether task order respects dependencies between work units, avoids rework and does not postpone critical foundations."
     }
   ]
 }

@@ -4,7 +4,7 @@ Wefter installs reusable OpenCode workflows that weave product intent into audit
 
 ## Status
 
-Early product extraction. The package is usable locally for `documentation-audit`; `implementation-slice-loop` is being migrated from the source project; the other workflows are architecture scaffolds.
+Early product extraction. The package is usable locally for `documentation-audit`; `work-unit-implementation` is being migrated from the source project semantics; the other workflows are architecture scaffolds.
 
 ## Package
 
@@ -25,7 +25,7 @@ runtime artifacts: .audit/wefter/
 | `documentation-audit` | Available | Run redundant, adversarial documentation consistency audits. |
 | `documentation-repair` | Planned | Repair docs from a validated audit report without mixing detection and correction. |
 | `technical-shaping` | Planned | Convert product docs into explicit technical decisions and implementation constraints. |
-| `implementation-slice-loop` | Planned | Plan, review, implement and validate one implementation slice at a time. |
+| `work-unit-implementation` | Planned | Plan, review, implement and validate one release work unit at a time. |
 
 ## Local Development
 
@@ -77,7 +77,7 @@ wefter new-run documentation-audit --passes-per-lens 1 --max-audits 12
     "documentation-audit": { "status": "available", "enabled": true },
     "documentation-repair": { "status": "planned", "enabled": false },
     "technical-shaping": { "status": "planned", "enabled": false },
-    "implementation-slice-loop": { "status": "planned", "enabled": false }
+    "work-unit-implementation": { "status": "planned", "enabled": false }
   }
 }
 ```
@@ -94,7 +94,7 @@ wefter new-run documentation-audit --passes-per-lens 1 --max-audits 12
 
 Next steps before a stable release:
 
-1. Port `implementation-slice-loop` guards and run generation from PowerShell to Node.
+1. Port work-unit implementation guards and run generation from PowerShell to Node.
 2. Add automated tests around `init`, `doctor` and `docs audit`.
 3. Add an uninstall or manifest-based cleanup flow.
 4. Harden release and package publishing automation.

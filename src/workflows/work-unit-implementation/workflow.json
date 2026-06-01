@@ -1,0 +1,14 @@
+{
+  "id": "work-unit-implementation",
+  "status": "planned",
+  "title": "Work Unit Implementation",
+  "summary": "Plans, audits, repairs, gates, implements, reviews and validates one release work unit at a time using task-level TDD and deterministic guards.",
+  "commands": {
+    "cli": [
+      "wefter work-unit run",
+      "wefter work-unit guard"
+    ],
+    "opencode": ["/wefter-run-work-unit"]
+  },
+  "source": "Port the existing reference workflow semantics to Node before marking available. The standalone Wefter terminology is work unit."
+}

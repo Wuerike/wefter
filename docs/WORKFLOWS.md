@@ -8,6 +8,6 @@ Wefter workflow IDs are stable nouns. CLI and OpenCode commands use verbs.
 | `documentation-audit` | `wefter docs audit` | `/wefter-audit-docs` | Available |
 | `documentation-repair` | `wefter docs repair` | `/wefter-repair-docs` | Planned |
 | `technical-shaping` | `wefter technical shape` | `/wefter-shape-technical` | Planned |
-| `implementation-slice-loop` | `wefter slice run` | `/wefter-run-slice` | Planned |
+| `work-unit-implementation` | `wefter work-unit run` | `/wefter-run-work-unit` | Planned |
 
-The first implementation phase keeps `documentation-audit` executable and registers the full architecture. `implementation-slice-loop` is next, using the existing reference workflow as source material while replacing PowerShell scripts with Node commands.
+The first implementation release keeps `documentation-audit` executable and registers the full architecture. `work-unit-implementation` is next, using the existing reference workflow semantics as source material while replacing PowerShell scripts with Node commands.

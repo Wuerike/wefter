@@ -294,7 +294,7 @@ function defaultWorkflowRegistry() {
     "documentation-audit": { status: "available", enabled: true },
     "documentation-repair": { status: "planned", enabled: false },
     "technical-shaping": { status: "planned", enabled: false },
-    "implementation-slice-loop": { status: "planned", enabled: false }
+    "work-unit-implementation": { status: "planned", enabled: false }
   };
 }
 
@@ -575,7 +575,7 @@ async function commandInit(flags) {
   const root = packageRoot();
   const auditTemplates = documentationAuditTemplateRoot();
   copyRenderedTemplate(path.join(root, "src/workflows/documentation-audit/workflow.json"), path.join(targetRoot, config.workflowRoot, "documentation-audit/workflow.json"), values, flags.force);
-  for (const workflowId of ["product-shaping", "documentation-repair", "technical-shaping", "implementation-slice-loop"]) {
+  for (const workflowId of ["product-shaping", "documentation-repair", "technical-shaping", "work-unit-implementation"]) {
     copyDirectory(path.join(root, "src/workflows", workflowId), path.join(targetRoot, config.workflowRoot, workflowId), flags.force);
   }
   copyRenderedTemplate(path.join(auditTemplates, "opencode/agent/wefter-doc-audit-orchestrator.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-orchestrator.md"), values, flags.force);

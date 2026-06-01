@@ -15,7 +15,7 @@ Do not correct documentation. Do not choose a source of truth. Do not turn accep
 
 - Read `{{CONSOLIDATED_OUTPUT}}`.
 - For each candidate, open cited files and search nearby/additional context.
-- Try to refute the candidate with alternative explanations: scope, phase, responsible document, example status, benchmark context, terminology or detail level.
+- Try to refute the candidate with alternative explanations: scope, release, responsible document, example status, benchmark context, terminology or detail level.
 - Classify each candidate as Confirmed, Probable, Needs human decision or False positive.
 - Merge remaining duplicates.
 - Generate a short, actionable final report with evidence.

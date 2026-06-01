@@ -1,6 +1,6 @@
-# Slice Prompt Templates
+# Work Unit Prompt Templates
 
-This directory will receive the existing implementation-slice-loop prompt templates during the Node port.
+This directory will receive the work-unit implementation prompt templates during the Node port.
 
 Source templates to port:
 
@@ -11,4 +11,4 @@ Source templates to port:
 - `plan-repairer-prompt.md`
 - `task-implementation-prompt.md`
 - `task-review-prompt.md`
-- `slice-validator-prompt.md`
+- `work-unit-validator-prompt.md`
