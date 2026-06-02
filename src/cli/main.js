@@ -32,7 +32,7 @@ Usage:
   wefter init [--yes] [--force] [--target <path>] [--profile-path <path>] [--artifact-root <path>] [--template-root <path>] [--process-doc-path <path>] [--runner-command <command>]
   wefter docs audit [--target <path>] [--profile-path <path>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--dry-run]
   wefter docs repair [--target <path>] --audit-report <path> [--run-name <name>] [--dry-run]
-  wefter work-unit run [--target <path>] [--work-unit-id <id>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--config-path <path>] [--lenses-path <path>] [--dry-run]
+  wefter work-unit run [--target <path>] [--work-unit-id <id>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--config-path <path>] [--profile-path <path>] [--dry-run]
   wefter work-unit guard [--target <path>] [--run-id <id> | --run-root <path>] [--task-id <id>] [--mode Status|ReadyForReview|ReadyForNextTask|ReadyForFinalValidation] [--config-path <path>] [--json]
   wefter new-run documentation-audit [--target <path>] [--profile-path <path>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--dry-run]
   wefter profile scaffold [--target <path>] [--force]
@@ -366,7 +366,7 @@ function defaultWorkflowRegistry() {
       status: "available",
       enabled: true,
       configPath: ".wefter/workflows/work-unit-implementation/config.json",
-      lensesPath: ".wefter/workflows/work-unit-implementation/lenses.json"
+      profilePath: ".wefter/workflows/work-unit-implementation/profile.json"
     }
   };
 }
@@ -384,9 +384,9 @@ function workUnitConfigPath(config, flags = {}) {
   return normalizeRelativePath(flags["config-path"] || settings.configPath || `${config.workflowRoot}/${WORK_UNIT_WORKFLOW_ID}/config.json`, "work-unit config path");
 }
 
-function workUnitLensesPath(config, flags = {}) {
+function workUnitProfilePath(config, flags = {}) {
   const settings = workflowSettings(config, WORK_UNIT_WORKFLOW_ID);
-  return normalizeRelativePath(flags["lenses-path"] || settings.lensesPath || `${config.workflowRoot}/${WORK_UNIT_WORKFLOW_ID}/lenses.json`, "work-unit lenses path");
+  return normalizeRelativePath(flags["profile-path"] || settings.profilePath || `${config.workflowRoot}/${WORK_UNIT_WORKFLOW_ID}/profile.json`, "work-unit profile path");
 }
 
 function normalizeWorkflowRegistry(workflows) {
@@ -394,14 +394,14 @@ function normalizeWorkflowRegistry(workflows) {
   for (const [workflowId, workflow] of Object.entries(workflows)) {
     requireId(workflowId, `workflows.${workflowId}`);
     assertObject(workflow, `workflows.${workflowId}`);
-    assertAllowedKeys(workflow, `workflows.${workflowId}`, ["status", "enabled", "profilePath", "configPath", "lensesPath"]);
+    assertAllowedKeys(workflow, `workflows.${workflowId}`, ["status", "enabled", "profilePath", "configPath"]);
     if (!["available", "planned"].includes(workflow.status)) {
       throw new Error(`workflows.${workflowId}.status must be available or planned.`);
     }
     if (typeof workflow.enabled !== "boolean") {
       throw new Error(`workflows.${workflowId}.enabled must be boolean.`);
     }
-    for (const key of ["profilePath", "configPath", "lensesPath"]) {
+    for (const key of ["profilePath", "configPath"]) {
       if (workflow[key] !== undefined) {
         normalizeRelativePath(workflow[key], `workflows.${workflowId}.${key}`);
       }
@@ -639,37 +639,37 @@ function validateWorkUnitConfig(config) {
   requireStringArray(config.gatePolicy.alwaysPauseOn, "Work-unit config.gatePolicy.alwaysPauseOn");
 }
 
-function validateWorkUnitLenses(lensesConfig) {
-  assertObject(lensesConfig, "Work-unit lenses");
-  assertAllowedKeys(lensesConfig, "Work-unit lenses", ["version", "variants", "lenses"]);
+function validateWorkUnitProfile(profile) {
+  assertObject(profile, "Work-unit profile");
+  assertAllowedKeys(profile, "Work-unit profile", ["version", "variants", "lenses"]);
 
-  if (lensesConfig.version !== 1) {
-    throw new Error("Work-unit lenses must have version: 1.");
+  if (profile.version !== 1) {
+    throw new Error("Work-unit profile must have version: 1.");
   }
 
-  if (!Array.isArray(lensesConfig.variants) || lensesConfig.variants.length === 0) {
-    throw new Error("Work-unit lenses must define at least one variant.");
+  if (!Array.isArray(profile.variants) || profile.variants.length === 0) {
+    throw new Error("Work-unit profile must define at least one variant.");
   }
-  lensesConfig.variants.forEach((variant, index) => {
-    assertObject(variant, `Work-unit lenses variants[${index}]`);
-    assertAllowedKeys(variant, `Work-unit lenses variants[${index}]`, ["id", "title", "instruction"]);
-    requireId(variant.id, `Work-unit lenses variants[${index}].id`);
-    requireString(variant.title, `Work-unit lenses variants[${index}].title`);
-    requireString(variant.instruction, `Work-unit lenses variants[${index}].instruction`);
+  profile.variants.forEach((variant, index) => {
+    assertObject(variant, `Work-unit profile variants[${index}]`);
+    assertAllowedKeys(variant, `Work-unit profile variants[${index}]`, ["id", "title", "instruction"]);
+    requireId(variant.id, `Work-unit profile variants[${index}].id`);
+    requireString(variant.title, `Work-unit profile variants[${index}].title`);
+    requireString(variant.instruction, `Work-unit profile variants[${index}].instruction`);
   });
-  assertUniqueIds(lensesConfig.variants, "Work-unit lenses variants");
+  assertUniqueIds(profile.variants, "Work-unit profile variants");
 
-  if (!Array.isArray(lensesConfig.lenses) || lensesConfig.lenses.length === 0) {
-    throw new Error("Work-unit lenses must define at least one lens.");
+  if (!Array.isArray(profile.lenses) || profile.lenses.length === 0) {
+    throw new Error("Work-unit profile must define at least one lens.");
   }
-  lensesConfig.lenses.forEach((lens, index) => {
-    assertObject(lens, `Work-unit lenses lenses[${index}]`);
-    assertAllowedKeys(lens, `Work-unit lenses lenses[${index}]`, ["id", "title", "focus"]);
-    requireId(lens.id, `Work-unit lenses lenses[${index}].id`);
-    requireString(lens.title, `Work-unit lenses lenses[${index}].title`);
-    requireString(lens.focus, `Work-unit lenses lenses[${index}].focus`);
+  profile.lenses.forEach((lens, index) => {
+    assertObject(lens, `Work-unit profile lenses[${index}]`);
+    assertAllowedKeys(lens, `Work-unit profile lenses[${index}]`, ["id", "title", "focus"]);
+    requireId(lens.id, `Work-unit profile lenses[${index}].id`);
+    requireString(lens.title, `Work-unit profile lenses[${index}].title`);
+    requireString(lens.focus, `Work-unit profile lenses[${index}].focus`);
   });
-  assertUniqueIds(lensesConfig.lenses, "Work-unit lenses lenses");
+  assertUniqueIds(profile.lenses, "Work-unit profile lenses");
 }
 
 function markdownList(items) {
@@ -751,7 +751,7 @@ async function commandInit(flags) {
     WORK_UNIT_ARTIFACT_ROOT: ".audit/wefter/work-unit-implementation",
     WORK_UNIT_ARTIFACT_ROOT_WINDOWS: windowsPermissionPath(".audit/wefter/work-unit-implementation"),
     WORK_UNIT_CONFIG_PATH: ".wefter/workflows/work-unit-implementation/config.json",
-    WORK_UNIT_LENSES_PATH: ".wefter/workflows/work-unit-implementation/lenses.json"
+    WORK_UNIT_PROFILE_PATH: ".wefter/workflows/work-unit-implementation/profile.json"
   };
 
   writeJsonIfSafe(path.join(targetRoot, CONFIG_FILE), {
@@ -768,7 +768,7 @@ async function commandInit(flags) {
   }
   copyDirectory(path.join(workUnitPackageRoot, "templates/prompts"), path.join(targetRoot, config.workflowRoot, WORK_UNIT_WORKFLOW_ID, "templates/prompts"), flags.force);
   writeJsonIfSafe(path.join(targetRoot, workUnitConfigPath(config)), readJson(path.join(workUnitPackageRoot, "templates/default-config.json"), "default work-unit config"), flags.force);
-  writeJsonIfSafe(path.join(targetRoot, workUnitLensesPath(config)), readJson(path.join(workUnitPackageRoot, "templates/default-lenses.json"), "default work-unit lenses"), flags.force);
+  writeJsonIfSafe(path.join(targetRoot, workUnitProfilePath(config)), readJson(path.join(workUnitPackageRoot, "templates/default-profile.json"), "default work-unit profile"), flags.force);
   copyRenderedTemplate(path.join(auditTemplates, "opencode/agent/wefter-doc-audit-orchestrator.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-orchestrator.md"), values, flags.force);
   copyRenderedTemplate(path.join(auditTemplates, "opencode/agent/wefter-doc-auditor.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-auditor.md"), values, flags.force);
   copyRenderedTemplate(path.join(auditTemplates, "opencode/agent/wefter-doc-audit-consolidator.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-consolidator.md"), values, flags.force);
@@ -1082,11 +1082,11 @@ function commandWorkUnitRun(flags) {
   const targetRoot = resolveTarget(flags);
   const wefterConfig = readConfig(targetRoot);
   const configPath = workUnitConfigPath(wefterConfig, flags);
-  const lensesPath = workUnitLensesPath(wefterConfig, flags);
+  const profilePath = workUnitProfilePath(wefterConfig, flags);
   const workUnitConfig = readJson(path.join(targetRoot, configPath), "work-unit config");
-  const lensesConfig = readJson(path.join(targetRoot, lensesPath), "work-unit lenses");
+  const profile = readJson(path.join(targetRoot, profilePath), "work-unit profile");
   validateWorkUnitConfig(workUnitConfig);
-  validateWorkUnitLenses(lensesConfig);
+  validateWorkUnitProfile(profile);
 
   const workUnitId = flags["work-unit-id"] || workUnitConfig.defaultWorkUnitId;
   const workUnitKey = getSafeWorkUnitKey(workUnitId);
@@ -1101,7 +1101,7 @@ function commandWorkUnitRun(flags) {
 
   const runName = flags["run-name"] || `${timestampRunName()}__${workUnitKey}`;
   assertSafeRunName(runName);
-  const combinations = buildCombinations(lensesConfig, passesPerLens, maxAudits).map((combo, index) => ({
+  const combinations = buildCombinations(profile, passesPerLens, maxAudits).map((combo, index) => ({
     ...combo,
     auditId: `P${String(index + 1).padStart(4, "0")}__${combo.lens.id}__${combo.variant.id}__p${String(combo.pass).padStart(2, "0")}`
   }));
@@ -1122,8 +1122,8 @@ function commandWorkUnitRun(flags) {
   if (flags["dry-run"]) {
     console.log(`Run name: ${runName}`);
     console.log(`Work unit: ${workUnitKey}`);
-    console.log(`Lenses: ${lensesConfig.lenses.length}`);
-    console.log(`Variants: ${lensesConfig.variants.length}`);
+    console.log(`Lenses: ${profile.lenses.length}`);
+    console.log(`Variants: ${profile.variants.length}`);
     console.log(`Passes per lens/variant: ${passesPerLens}`);
     console.log(`Plan auditor prompts to generate: ${combinations.length}`);
     console.log(`Output root: ${runRoot}`);
@@ -1200,7 +1200,7 @@ function commandWorkUnitRun(flags) {
     WORK_UNIT_KEY: workUnitKey,
     RELEASE_ID: workUnitConfig.releaseId,
     CONFIG_PATH: configPath,
-    LENSES_PATH: lensesPath,
+    PROFILE_PATH: profilePath,
     RUN_ROOT: runRootRelative,
     WORK_UNITS_DOCUMENT: workUnitConfig.workUnitsDocument,
     SOURCE_INCLUDE: markdownList(workUnitConfig.sourceDocs.include),
@@ -1278,13 +1278,13 @@ function commandWorkUnitRun(flags) {
     releaseId: workUnitConfig.releaseId,
     generatedAt: new Date().toISOString(),
     configPath,
-    lensesPath,
+    profilePath,
     passesPerLens,
     maxAudits,
     gatePolicy: workUnitConfig.gatePolicy,
     counts: {
-      lenses: lensesConfig.lenses.length,
-      variants: lensesConfig.variants.length,
+      lenses: profile.lenses.length,
+      variants: profile.variants.length,
       planAuditorPrompts: combinations.length
     },
     paths: {
@@ -1312,7 +1312,7 @@ function commandWorkUnitRun(flags) {
     }
   });
 
-  fs.writeFileSync(path.join(stagingRunRoot, "README.md"), `# Work Unit Implementation Run\n\nRun: ${runName}\nWork unit: ${workUnitKey}\nRelease: ${workUnitConfig.releaseId}\n\n## Counts\n\n- Lenses: ${lensesConfig.lenses.length}\n- Variants: ${lensesConfig.variants.length}\n- Passes per lens/variant: ${passesPerLens}\n- Plan auditor prompts: ${combinations.length}\n\n## Execution Order\n\n1. Execute prompts/plan.md with the work-unit planner.\n2. Execute prompts/plan-auditors/${workUnitKey}/*.md with plan auditors.\n3. Execute prompts/consolidate-plan.md.\n4. Execute prompts/validate-plan.md.\n5. Execute prompts/repair-plan.md.\n6. Review final/approved-artifacts/${workUnitKey}/ and apply gate policy.\n7. Publish approved artifacts to ${versionedWorkUnitDir} and ${versionedDecisionLog}.\n8. Execute prompts/implement-tasks.md task by task only after approval.\n9. After each implementation or correction, run \`wefter work-unit guard --run-id ${runName} --task-id <task-id> --mode ReadyForReview\`.\n10. Review the task with prompts/review-task.md.\n11. After each task review, run \`wefter work-unit guard --run-id ${runName} --task-id <task-id> --mode ReadyForNextTask\`.\n12. If the guard reports Needs Fix, correct the same task and repeat implementation guard -> review -> next-task guard.\n13. If the guard reports Blocked, pause the work unit for human decision or specification repair.\n14. Before final validation, run \`wefter work-unit guard --run-id ${runName} --mode ReadyForFinalValidation\`.\n15. Execute prompts/validate-work-unit.md only when all tasks pass review and the final-validation guard passes.\n`, "utf8");
+  fs.writeFileSync(path.join(stagingRunRoot, "README.md"), `# Work Unit Implementation Run\n\nRun: ${runName}\nWork unit: ${workUnitKey}\nRelease: ${workUnitConfig.releaseId}\n\n## Counts\n\n- Lenses: ${profile.lenses.length}\n- Variants: ${profile.variants.length}\n- Passes per lens/variant: ${passesPerLens}\n- Plan auditor prompts: ${combinations.length}\n\n## Execution Order\n\n1. Execute prompts/plan.md with the work-unit planner.\n2. Execute prompts/plan-auditors/${workUnitKey}/*.md with plan auditors.\n3. Execute prompts/consolidate-plan.md.\n4. Execute prompts/validate-plan.md.\n5. Execute prompts/repair-plan.md.\n6. Review final/approved-artifacts/${workUnitKey}/ and apply gate policy.\n7. Publish approved artifacts to ${versionedWorkUnitDir} and ${versionedDecisionLog}.\n8. Execute prompts/implement-tasks.md task by task only after approval.\n9. After each implementation or correction, run \`wefter work-unit guard --run-id ${runName} --task-id <task-id> --mode ReadyForReview\`.\n10. Review the task with prompts/review-task.md.\n11. After each task review, run \`wefter work-unit guard --run-id ${runName} --task-id <task-id> --mode ReadyForNextTask\`.\n12. If the guard reports Needs Fix, correct the same task and repeat implementation guard -> review -> next-task guard.\n13. If the guard reports Blocked, pause the work unit for human decision or specification repair.\n14. Before final validation, run \`wefter work-unit guard --run-id ${runName} --mode ReadyForFinalValidation\`.\n15. Execute prompts/validate-work-unit.md only when all tasks pass review and the final-validation guard passes.\n`, "utf8");
 
   if (fs.existsSync(runRoot)) {
     throw new Error(`Run directory was created before finalizing the staging move: ${runRoot}`);
@@ -1665,9 +1665,9 @@ function commandDoctor(flags) {
   });
   check("work-unit workflow config", () => {
     const configPath = path.join(targetRoot, workUnitConfigPath(config));
-    const lensesPath = path.join(targetRoot, workUnitLensesPath(config));
+    const profilePath = path.join(targetRoot, workUnitProfilePath(config));
     validateWorkUnitConfig(readJson(configPath, "work-unit config"));
-    validateWorkUnitLenses(readJson(lensesPath, "work-unit lenses"));
+    validateWorkUnitProfile(readJson(profilePath, "work-unit profile"));
   });
   check("opencode agents", () => {
     const agentFiles = [
@@ -1722,6 +1722,7 @@ function commandDoctor(flags) {
     const orchestrator = readTextRequired(path.join(targetRoot, ".opencode/agent/wefter-work-unit-orchestrator.md"));
     assertIncludes(orchestrator, CONFIG_FILE, "work-unit orchestrator config reference");
     assertIncludes(orchestrator, workUnitConfigPath(config), "work-unit orchestrator workflow config path");
+    assertIncludes(orchestrator, workUnitProfilePath(config), "work-unit orchestrator workflow profile path");
     assertIncludes(orchestrator, config.runnerCommand, "work-unit orchestrator runner command");
   });
   check("documentation repair opencode agents", () => {
@@ -1762,7 +1763,7 @@ function commandDoctor(flags) {
     const content = readTextRequired(skillPath);
     assertNoPlaceholders(skillPath, content);
     assertIncludes(content, workUnitConfigPath(config), "work-unit skill config path");
-    assertIncludes(content, workUnitLensesPath(config), "work-unit skill lenses path");
+    assertIncludes(content, workUnitProfilePath(config), "work-unit skill profile path");
   });
   check("documentation repair opencode skill", () => {
     const skillPath = path.join(targetRoot, ".opencode/skills/documentation-repair/SKILL.md");

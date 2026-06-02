@@ -63,6 +63,26 @@ function smallProfile(title = "One lens") {
   };
 }
 
+function smallWorkUnitProfile(title = "One work-unit lens") {
+  return {
+    version: 1,
+    variants: [
+      {
+        id: "one-variant",
+        title: "One variant",
+        instruction: "Find one type of work-unit issue."
+      }
+    ],
+    lenses: [
+      {
+        id: "one-lens",
+        title,
+        focus: "Inspect one work-unit planning area."
+      }
+    ]
+  };
+}
+
 function initTarget(name = "target") {
   const target = makeTarget(name);
   run(["init", "--target", target, "--yes", "--force"]);
@@ -73,12 +93,15 @@ test("init installs config, OpenCode files, and doctor passes", () => {
   const target = initTarget("init");
 
   assert.equal(readJson(path.join(target, "wefter.config.json")).workflows["work-unit-implementation"].status, "available");
+  assert.equal(readJson(path.join(target, "wefter.config.json")).workflows["work-unit-implementation"].profilePath, ".wefter/workflows/work-unit-implementation/profile.json");
   assert.equal(readJson(path.join(target, "wefter.config.json")).workflows["documentation-repair"].status, "available");
   assert.ok(fs.existsSync(path.join(target, ".opencode", "agent", "wefter-doc-audit-orchestrator.md")));
   assert.ok(fs.existsSync(path.join(target, ".opencode", "agent", "wefter-doc-repair-orchestrator.md")));
   assert.ok(fs.existsSync(path.join(target, ".opencode", "agent", "wefter-work-unit-orchestrator.md")));
   assert.ok(fs.existsSync(path.join(target, ".opencode", "skills", "documentation-repair", "SKILL.md")));
   assert.ok(fs.existsSync(path.join(target, ".opencode", "skills", "work-unit-implementation", "SKILL.md")));
+  assert.ok(fs.existsSync(path.join(target, ".wefter", "workflows", "work-unit-implementation", "profile.json")));
+  assert.ok(!fs.existsSync(path.join(target, ".wefter", "workflows", "work-unit-implementation", "lenses.json")));
 
   const doctor = run(["doctor", "--target", target]);
   assert.match(doctor.stdout, /Wefter installation looks healthy/);
@@ -136,16 +159,19 @@ test("profile import and docs audit profile override preserve custom audit profi
 
 test("work-unit run dry-run and real run generate expected artifacts", () => {
   const target = initTarget("work-unit-run");
+  const profilePath = path.join("docs", "work-unit-profile.json");
+  writeJsonFile(path.join(target, profilePath), smallWorkUnitProfile());
 
-  const dry = run(["work-unit", "run", "--target", target, "--work-unit-id", "0", "--run-name", "wu-dry", "--passes-per-lens", "1", "--max-audits", "2", "--dry-run"]);
+  const dry = run(["work-unit", "run", "--target", target, "--work-unit-id", "0", "--run-name", "wu-dry", "--profile-path", profilePath, "--passes-per-lens", "1", "--max-audits", "2", "--dry-run"]);
   assert.match(dry.stdout, /Work unit: work-unit-00/);
-  assert.match(dry.stdout, /Plan auditor prompts to generate: 2/);
+  assert.match(dry.stdout, /Plan auditor prompts to generate: 1/);
 
-  run(["work-unit", "run", "--target", target, "--work-unit-id", "0", "--run-name", "wu-run", "--passes-per-lens", "1", "--max-audits", "2"]);
+  run(["work-unit", "run", "--target", target, "--work-unit-id", "0", "--run-name", "wu-run", "--profile-path", profilePath, "--passes-per-lens", "1", "--max-audits", "2"]);
   const manifest = readJson(path.join(target, ".audit", "wefter", "work-unit-implementation", "wu-run", "manifest.json"));
   assert.equal(manifest.workflowId, "work-unit-implementation");
   assert.equal(manifest.workUnitKey, "work-unit-00");
-  assert.equal(manifest.prompts.planAudits.length, 2);
+  assert.equal(manifest.profilePath, profilePath.replaceAll("\\", "/"));
+  assert.equal(manifest.prompts.planAudits.length, 1);
   assert.ok(fs.existsSync(path.join(target, ".audit", "wefter", "work-unit-implementation", "wu-run", "prompts", "plan.md")));
   const readme = fs.readFileSync(path.join(target, ".audit", "wefter", "work-unit-implementation", "wu-run", "README.md"), "utf8");
   assert.match(readme, /ReadyForReview/);
@@ -185,5 +211,6 @@ test("path safety rejects traversal and path-like run names", () => {
   assert.match(run(["profile", "import", "--target", target, "--source", "../lenses.json"], { expectFailure: true }).stderr, /must not be empty or contain '\.\.'/);
   assert.match(run(["docs", "repair", "--target", target, "--audit-report", "../audit-report.md"], { expectFailure: true }).stderr, /must not be empty or contain '\.\.'/);
   assert.match(run(["work-unit", "run", "--target", target, "--config-path", "../config.json"], { expectFailure: true }).stderr, /must not be empty or contain '\.\.'/);
+  assert.match(run(["work-unit", "run", "--target", target, "--profile-path", "../profile.json"], { expectFailure: true }).stderr, /must not be empty or contain '\.\.'/);
   assert.match(run(["work-unit", "guard", "--target", target, "--run-root", outside], { expectFailure: true }).stderr, /resolves outside the target repository/);
 });

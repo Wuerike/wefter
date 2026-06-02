@@ -24,7 +24,7 @@ These files must not encode any single product domain.
 - `templateRoot`: installed documentation audit prompt templates.
 - `processDocPath`: installed workflow documentation.
 - `runnerCommand`: command used by OpenCode orchestrators to invoke Wefter.
-- `workflows`: registry of available and planned workflow IDs.
+- `workflows`: registry of available and planned workflow IDs, with workflow-specific paths such as work-unit `configPath` and `profilePath`.
 
 Paths are repository-relative and validated before use.
 

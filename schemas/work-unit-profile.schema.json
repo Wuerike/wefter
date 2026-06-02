@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://wefter.dev/schemas/work-unit-lenses.schema.json",
+  "$id": "https://wefter.dev/schemas/work-unit-profile.schema.json",
   "type": "object",
   "required": ["version", "variants", "lenses"],
   "properties": {

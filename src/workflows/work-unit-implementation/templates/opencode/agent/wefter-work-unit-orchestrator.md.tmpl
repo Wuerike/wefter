@@ -20,13 +20,13 @@ Local configuration:
 
 - Wefter config: `{{CONFIG_FILE}}`
 - Work-unit config: `{{WORK_UNIT_CONFIG_PATH}}`
-- Work-unit lenses: `{{WORK_UNIT_LENSES_PATH}}`
+- Work-unit profile: `{{WORK_UNIT_PROFILE_PATH}}`
 - Artifact root: `{{WORK_UNIT_ARTIFACT_ROOT}}`
 - Runner command: `{{RUNNER_COMMAND}}`
 
 Default flow:
 
-1. Read `{{CONFIG_FILE}}`, `{{WORK_UNIT_CONFIG_PATH}}`, and `{{WORK_UNIT_LENSES_PATH}}`.
+1. Read `{{CONFIG_FILE}}`, `{{WORK_UNIT_CONFIG_PATH}}`, and `{{WORK_UNIT_PROFILE_PATH}}`.
 2. If the user provided an existing `{{WORK_UNIT_ARTIFACT_ROOT}}/<run-id>` path, resume that run.
 3. Otherwise create a run with `{{RUNNER_COMMAND}} work-unit run`.
 4. If the user did not specify a work unit, ask one short clarification unless the default is clearly intended.

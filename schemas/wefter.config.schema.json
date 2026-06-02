@@ -21,8 +21,7 @@
           "status": { "enum": ["available", "planned"] },
           "enabled": { "type": "boolean" },
           "profilePath": { "type": "string", "minLength": 1 },
-          "configPath": { "type": "string", "minLength": 1 },
-          "lensesPath": { "type": "string", "minLength": 1 }
+          "configPath": { "type": "string", "minLength": 1 }
         },
         "additionalProperties": false
       }

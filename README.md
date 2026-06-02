@@ -86,7 +86,7 @@ wefter new-run documentation-audit --passes-per-lens 1 --max-audits 12
       "status": "available",
       "enabled": true,
       "configPath": ".wefter/workflows/work-unit-implementation/config.json",
-      "lensesPath": ".wefter/workflows/work-unit-implementation/lenses.json"
+      "profilePath": ".wefter/workflows/work-unit-implementation/profile.json"
     }
   }
 }
