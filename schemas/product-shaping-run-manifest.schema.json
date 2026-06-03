@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wefter.dev/schemas/product-shaping-run-manifest.schema.json",
+  "type": "object",
+  "required": ["version", "workflowId", "runId", "releaseId", "generatedAt", "configPath", "profilePath", "contractPath", "processDocPath", "specRoot", "counts", "paths", "outputs", "handoff", "gate", "prompts", "requiredFiles"],
+  "properties": {
+    "version": { "const": 1 },
+    "workflowId": { "const": "product-shaping" },
+    "runId": { "type": "string", "minLength": 1 },
+    "releaseId": { "type": "string", "minLength": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "configPath": { "$ref": "#/$defs/relativePath" },
+    "profilePath": { "$ref": "#/$defs/relativePath" },
+    "contractPath": { "$ref": "#/$defs/relativePath" },
+    "processDocPath": { "$ref": "#/$defs/relativePath" },
+    "specRoot": { "$ref": "#/$defs/relativePath" },
+    "counts": {
+      "type": "object",
+      "required": ["requiredFiles", "variants", "lenses"],
+      "properties": {
+        "requiredFiles": { "type": "integer", "minimum": 1 },
+        "variants": { "type": "integer", "minimum": 1 },
+        "lenses": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "paths": {
+      "type": "object",
+      "required": ["runRoot", "prompts", "draft", "review", "validation", "final", "specRoot", "releaseRoot"],
+      "properties": {
+        "runRoot": { "$ref": "#/$defs/relativePath" },
+        "prompts": { "$ref": "#/$defs/relativePath" },
+        "draft": { "$ref": "#/$defs/relativePath" },
+        "review": { "$ref": "#/$defs/relativePath" },
+        "validation": { "$ref": "#/$defs/relativePath" },
+        "final": { "$ref": "#/$defs/relativePath" },
+        "specRoot": { "$ref": "#/$defs/relativePath" },
+        "releaseRoot": { "$ref": "#/$defs/relativePath" }
+      },
+      "additionalProperties": false
+    },
+    "outputs": {
+      "type": "object",
+      "required": ["adversarialReview", "finalValidation"],
+      "properties": {
+        "adversarialReview": { "$ref": "#/$defs/relativePath" },
+        "finalValidation": { "$ref": "#/$defs/relativePath" }
+      },
+      "additionalProperties": false
+    },
+    "handoff": {
+      "type": "object",
+      "required": ["deliverables"],
+      "properties": {
+        "deliverables": { "allOf": [{ "$ref": "#/$defs/relativePath" }, { "pattern": "^.+/DELIVERABLES\\.md$" }] }
+      },
+      "additionalProperties": false
+    },
+    "gate": {
+      "type": "object",
+      "required": ["status", "requireNoReleaseBlockingQuestions", "requireAdversarialReview", "requireFinalValidation", "readyDeliverableStatuses"],
+      "properties": {
+        "status": { "enum": ["pending", "passed", "failed"] },
+        "requireNoReleaseBlockingQuestions": { "type": "boolean" },
+        "requireAdversarialReview": { "type": "boolean" },
+        "requireFinalValidation": { "type": "boolean" },
+        "readyDeliverableStatuses": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "const": "ready" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "requiredFiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["templatePath", "path", "fullPath"],
+        "properties": {
+          "templatePath": { "$ref": "#/$defs/relativePath" },
+          "path": { "$ref": "#/$defs/relativePath" },
+          "fullPath": { "$ref": "#/$defs/relativePath" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "prompts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/relativePath" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?![\\\\/])(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\\r\n]+$"
+    }
+  }
+}

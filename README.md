@@ -4,7 +4,7 @@ Wefter installs reusable OpenCode workflows that weave product intent into audit
 
 ## Status
 
-Early product extraction. The package is usable locally for `documentation-audit`, `documentation-repair`, and `work-unit-implementation`; the other workflows are architecture scaffolds.
+Wefter is usable locally for `product-shaping`, `documentation-audit`, `documentation-repair`, and `work-unit-implementation`. Product shaping is available by default and includes CLI run generation, OpenCode integration, validation gates and audited `DELIVERABLES.md` handoff.
 
 ## Package
 
@@ -14,14 +14,14 @@ repo: opencode-wefter
 cli: wefter
 config: wefter.config.json
 local workflow files: .wefter/
-runtime artifacts: .audit/wefter/
+runtime artifacts: .audit/wefter/ for legacy workflows; .wefter/runs/ for product-shaping
 ```
 
 ## Workflows
 
 | Workflow ID | Status | Purpose |
 | --- | --- | --- |
-| `product-shaping` | Planned | Shape an initial idea into product docs, scope and explicit decisions. |
+| `product-shaping` | Available | Shape an initial idea into product specs, release scope, acceptance criteria and deliverables. |
 | `documentation-audit` | Available | Run redundant, adversarial documentation consistency audits. |
 | `documentation-repair` | Available | Repair docs from a validated audit report without mixing detection and correction. |
 | `technical-shaping` | Planned | Convert product docs into explicit technical decisions and implementation constraints. |
@@ -46,10 +46,11 @@ node <path-to-opencode-wefter>/bin/wefter.js init --target <path-to-project> --y
 npx @wefter/opencode init
 ```
 
-Restart OpenCode, then use:
+Restart OpenCode, then use the available default commands:
 
 ```text
 /wefter-generate-doc-audit-profile
+/wefter-shape-product
 /wefter-audit-docs
 /wefter-repair-docs
 /wefter-run-work-unit
@@ -59,6 +60,8 @@ CLI checks are also available:
 
 ```bash
 wefter doctor
+wefter product shape --dry-run
+wefter product validate --json
 wefter docs audit --passes-per-lens 1 --max-audits 12
 wefter docs audit --profile-path docs/audits/lenses.json --passes-per-lens 1 --max-audits 12
 wefter profile import --source docs/audits/lenses.json --force
@@ -78,7 +81,14 @@ wefter new-run documentation-audit --passes-per-lens 1 --max-audits 12
   "processDocPath": ".wefter/workflows/documentation-audit/README.md",
   "runnerCommand": "node <path-to-wefter>/bin/wefter.js",
   "workflows": {
-    "product-shaping": { "status": "planned", "enabled": false },
+    "product-shaping": {
+      "status": "available",
+      "enabled": true,
+      "specRoot": ".wefter/specs",
+      "runRoot": ".wefter/runs/product-shaping",
+      "configPath": ".wefter/workflows/product-shaping/config.json",
+      "profilePath": ".wefter/workflows/product-shaping/profile.json"
+    },
     "documentation-audit": { "status": "available", "enabled": true },
     "documentation-repair": { "status": "available", "enabled": true },
     "technical-shaping": { "status": "planned", "enabled": false },
@@ -101,12 +111,15 @@ wefter new-run documentation-audit --passes-per-lens 1 --max-audits 12
 - `docs repair` writes through a staging directory and requires an existing repository-relative audit report path.
 - Paths in `wefter.config.json` must be relative to the target repository and must not contain `..`.
 - Run names are plain directory names and cannot contain path separators.
+- `product-shaping` writes versioned product specs under `.wefter/specs/` and runtime runs under `.wefter/runs/product-shaping/` by default.
+- `product validate` fails the publication/handoff gate when required product specs, blocking questions or deliverable statuses are invalid.
 - Audit execution must not edit source documentation; correction is a separate workflow.
 - Repair execution must pause when validated findings require unresolved human decisions.
 
 ## Product Direction
 
-Next steps before a stable release:
+Next hardening steps after the `0.2.0` product-shaping release:
 
 1. Add installation manifest/uninstall support.
-2. Harden release and package publishing automation.
+2. Continue migration from legacy `work-unit-implementation` naming toward `delivery-implementation`.
+3. Harden release and package publishing automation.

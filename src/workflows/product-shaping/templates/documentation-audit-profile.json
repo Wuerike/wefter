@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "auditorPromptPath": "src/workflows/product-shaping/templates/documentation-audit/workflow-self-audit-auditor-prompt.md",
+  "corpus": {
+    "include": [
+      "src/workflows/product-shaping/**",
+      "schemas/product-shaping-*.schema.json",
+      "schemas/wefter.config.schema.json",
+      "src/cli/main.js",
+      "test/cli.test.js",
+      "docs/**",
+      "CHANGELOG.md",
+      "package.json",
+      ".gitignore",
+      "README.md",
+      "wefter.config.json"
+    ],
+    "exclude": [
+      "node_modules/**",
+      ".git/**",
+      ".audit/**",
+      ".wefter/runs/**",
+      ".opencode/**"
+    ]
+  },
+  "variants": [
+    {
+      "id": "doctrine-drift",
+      "title": "Doctrine drift",
+      "instruction": "Find derived schemas, configs, prompts, agents, skills, CLI defaults or docs that contradict src/workflows/product-shaping/README.md."
+    },
+    {
+      "id": "missing-enforcement",
+      "title": "Missing enforcement",
+      "instruction": "Find README hard rules, completion gates, precedence rules or role boundaries that are not represented in derived artifacts."
+    },
+    {
+      "id": "legacy-vocabulary-leak",
+      "title": "Legacy vocabulary leak",
+      "instruction": "Find unintended use of legacy vocabulary such as phase, work unit or slice where release or deliverable should be canonical."
+    },
+    {
+      "id": "path-defaults",
+      "title": "Path defaults",
+      "instruction": "Find product-shaping defaults that write specs or runs outside .wefter/specs, .wefter/workflows or .wefter/runs without explicit config override."
+    }
+  ],
+  "lenses": [
+    {
+      "id": "doctrine-contract-surface",
+      "title": "Doctrine and contract surface",
+      "focus": "Extract the product-shaping README obligations for roots, vocabulary, required files, completion gates, handoff and availability. Compare them against workflow.json, default config/profile, schemas, structured contracts and generated manifest shape. Look for contradictions, under-specified dynamic placeholders, weak schema constraints and missing representation of mandatory doctrine."
+    },
+    {
+      "id": "spec-lifecycle-precedence",
+      "title": "Spec lifecycle and precedence",
+      "focus": "Audit the full product spec lifecycle: creation order, utilization order, file responsibilities, precedence rules, drift prevention, OPEN_QUESTIONS handling, PRODUCT_DECISIONS handling and reference-file dynamics. Compare README doctrine against contracts, prompts, validators, schemas and tests. Find order conflicts, skipped living documents, silent decision paths and ambiguous ownership."
+    },
+    {
+      "id": "runtime-gates-and-bypasses",
+      "title": "Runtime gates and bypasses",
+      "focus": "Audit CLI runtime behavior for product shape, product validate and work-unit handoff consumption. Compare docs and doctrine against command dispatch, config loading, path normalization, run generation, DELIVERABLES parsing, completion evidence, handoff compatibility, manifest trust and tests. Look for safe-equivalent path bypasses, stale evidence acceptance, documented-valid artifacts that fail validation and invalid artifacts that pass."
+    },
+    {
+      "id": "prompts-agents-opencode-execution",
+      "title": "Prompts, agents and OpenCode execution",
+      "focus": "Audit prompt templates, OpenCode agents, skill guidance, command registration, permissions and runner allowlists as one executable flow. Verify role boundaries, source-of-truth handling, hard stop conditions, read order, write permissions and whether the advertised product-shaping flow can run from shape through validation without inventing decisions or creating task specs."
+    },
+    {
+      "id": "public-release-and-package-hygiene",
+      "title": "Public release and package hygiene",
+      "focus": "Audit CHANGELOG.md, root README, docs, installation guidance, architecture docs, safety docs, self-audit docs, package metadata, .gitignore and release-facing claims. Compare public availability claims against executable behavior and package contents. Look for stale command lists, generated/private artifact leakage, ignored-output mistakes and docs that overstate what the runtime enforces."
+    },
+    {
+      "id": "tests-and-regression-coverage",
+      "title": "Tests and regression coverage",
+      "focus": "Audit whether tests actually protect product-shaping availability, path safety, schema/runtime alignment, OpenCode installation, completion gates, DELIVERABLES handoff and known adversarial edge cases. Compare tests against README hard rules, CHANGELOG claims and runtime behavior. Find important claims with no regression test, tests that encode undocumented behavior and happy-path-only coverage for risky gates."
+    }
+  ]
+}

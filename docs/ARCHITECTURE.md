@@ -19,7 +19,7 @@ These files must not encode any single product domain.
 `wefter.config.json` stores installation choices for one repository:
 
 - `workflowRoot`: versioned Wefter workflow files installed in the target repository.
-- `artifactRoot`: generated runtime output root for the currently available documentation audit workflow.
+- `artifactRoot`: generated runtime output root for legacy audit workflows. Product-shaping uses its workflow-specific run root under `.wefter/runs/product-shaping` by default.
 - `profilePath`: project-specific documentation audit profile.
 - `templateRoot`: installed documentation audit prompt templates.
 - `processDocPath`: installed workflow documentation.
@@ -38,7 +38,7 @@ Workflow modules live under `src/workflows/<workflow-id>/` and expose `workflow.
 - `technical-shaping`
 - `work-unit-implementation`
 
-`documentation-audit` is executable end-to-end through the CLI. `documentation-repair` generates gated repair runs from validated audit reports. `work-unit-implementation` can generate planning runs, install OpenCode agents, enforce deterministic task/review guards and validate completed work units.
+`product-shaping` is available for product spec generation and gated `DELIVERABLES.md` handoff. `documentation-audit` is executable end-to-end through the CLI. `documentation-repair` generates gated repair runs from validated audit reports. `work-unit-implementation` can generate planning runs, install OpenCode agents, enforce deterministic task/review guards and validate completed work units.
 
 ## Documentation Audit Run
 
@@ -63,17 +63,13 @@ Repair runs contain prompts for planning, applying approved repairs and reviewin
 
 The installer writes:
 
-- `.opencode/agent/wefter-doc-audit-orchestrator.md`
-- `.opencode/agent/wefter-doc-auditor.md`
-- `.opencode/agent/wefter-doc-audit-consolidator.md`
-- `.opencode/agent/wefter-doc-audit-validator.md`
-- `.opencode/agent/wefter-doc-audit-profile-builder.md`
-- `.opencode/agent/wefter-doc-repair-orchestrator.md`
-- `.opencode/agent/wefter-doc-repair-planner.md`
-- `.opencode/agent/wefter-doc-repairer.md`
-- `.opencode/agent/wefter-doc-repair-reviewer.md`
+- `.opencode/agent/wefter-doc-*.md`
+- `.opencode/agent/wefter-product-*.md`
+- `.opencode/agent/wefter-work-unit-*.md`
 - `.opencode/skills/documentation-audit/SKILL.md`
 - `.opencode/skills/documentation-repair/SKILL.md`
-- `opencode.json` commands `/wefter-audit-docs`, `/wefter-generate-doc-audit-profile`, `/wefter-repair-docs` and `/wefter-run-work-unit`
+- `.opencode/skills/product-shaping/SKILL.md`
+- `.opencode/skills/work-unit-implementation/SKILL.md`
+- `opencode.json` commands `/wefter-generate-doc-audit-profile`, `/wefter-shape-product`, `/wefter-audit-docs`, `/wefter-repair-docs` and `/wefter-run-work-unit`
 
 OpenCode must be restarted after installation because configuration is loaded once at startup.

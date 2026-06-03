@@ -1,0 +1,250 @@
+{
+  "version": 1,
+  "workflowId": "product-shaping",
+  "defaultRoots": {
+    "specRoot": ".wefter/specs",
+    "workflowRoot": ".wefter/workflows",
+    "runRoot": ".wefter/runs/product-shaping"
+  },
+  "vocabulary": ["idea", "product specs", "release", "deliverable", "task"],
+  "statusEnums": {
+    "feature": ["candidate", "core", "future", "rejected", "needs-decision"],
+    "question": ["open", "answered", "deferred", "obsolete"],
+    "decision": ["accepted", "superseded", "rejected"],
+    "deliverable": ["candidate", "ready", "blocked", "deferred", "done"]
+  },
+  "dynamicCollections": {
+    "references": {
+      "index": "references/README.md",
+      "itemPattern": "references/<reference>.md",
+      "listingPattern": "references/<reference>.md",
+      "creationOrder": "Create references/<reference>.md files before references/README.md when individual references are used; create references/README.md with an explicit zero-reference statement when none are used.",
+      "zeroItemsAllowedWithExplicitIndexStatement": true,
+      "rule": "Individual reference files are optional only when references/README.md explicitly states that no references were used or researched. Every listed reference file must exist, and every individual reference file must be listed with its references/<reference>.md path."
+    }
+  },
+  "creationOrderScope": "fixed-required-files",
+  "creationOrder": [
+    "README.md",
+    "discovery/SOURCE_MATERIALS.md",
+    "discovery/IDEA_BRIEF.md",
+    "discovery/OPEN_QUESTIONS.md",
+    "references/README.md",
+    "PRODUCT_VISION.md",
+    "product/FEATURE_CATALOG.md",
+    "product/MODULE_ROADMAP.md",
+    "product/DOMAIN_MODEL.md",
+    "product/OPERATIONAL_FLOW.md",
+    "product/PRODUCT_DECISIONS.md",
+    "releases/README.md",
+    "releases/<release-id>/README.md",
+    "releases/<release-id>/SCOPE.md",
+    "releases/<release-id>/DOMAIN_SPEC.md",
+    "releases/<release-id>/ACCEPTANCE_CRITERIA.md",
+    "releases/<release-id>/DELIVERABLES.md"
+  ],
+  "utilizationOrder": [
+    "README.md",
+    "releases/<release-id>/README.md",
+    "PRODUCT_VISION.md",
+    "product/PRODUCT_DECISIONS.md",
+    "releases/<release-id>/SCOPE.md",
+    "releases/<release-id>/DOMAIN_SPEC.md",
+    "releases/<release-id>/ACCEPTANCE_CRITERIA.md",
+    "releases/<release-id>/DELIVERABLES.md",
+    "product/DOMAIN_MODEL.md",
+    "product/OPERATIONAL_FLOW.md",
+    "product/FEATURE_CATALOG.md",
+    "product/MODULE_ROADMAP.md",
+    "discovery/OPEN_QUESTIONS.md",
+    "discovery/IDEA_BRIEF.md",
+    "references/"
+  ],
+  "precedence": {
+    "release": [
+      "releases/<release-id>/SCOPE.md",
+      "releases/<release-id>/DOMAIN_SPEC.md",
+      "releases/<release-id>/ACCEPTANCE_CRITERIA.md",
+      "releases/<release-id>/DELIVERABLES.md"
+    ],
+    "product": [
+      "PRODUCT_VISION.md",
+      "product/MODULE_ROADMAP.md",
+      "product/FEATURE_CATALOG.md"
+    ],
+    "decision": "PRODUCT_DECISIONS.md supersedes older narrative text only when the decision is explicit, dated or otherwise clearly recorded.",
+    "blockingQuestionRule": "OPEN_QUESTIONS.md with open or deferred release-blocking questions blocks completion regardless of file precedence."
+  },
+  "requiredFiles": [
+    {
+      "path": "README.md",
+      "responsibility": "Map the product spec tree, document responsibilities and source-of-truth rules.",
+      "limits": "Must not contain detailed product rules, feature lists, roadmap content, release scope or technical decisions.",
+      "createdAfter": [],
+      "usedBefore": ["all product specs"],
+      "consumers": ["all product-shaping agents", "documentation-audit", "documentation-repair", "technical-shaping", "delivery planning"],
+      "minimumContent": ["configured spec root", "document responsibility table", "precedence summary", "handoff rule to DELIVERABLES.md"],
+      "hardRules": ["Create before writing any other product spec file.", "Do not create ad hoc product spec files outside the documented tree unless config explicitly allows them."]
+    },
+    {
+      "path": "discovery/SOURCE_MATERIALS.md",
+      "responsibility": "Catalog raw material used for shaping.",
+      "limits": "Must not interpret the product, define scope, synthesize features or make product decisions.",
+      "createdAfter": ["README.md"],
+      "usedBefore": ["discovery/IDEA_BRIEF.md"],
+      "consumers": ["wefter-product-intake-analyst", "wefter-product-auditor", "wefter-product-validator", "wefter-product-repairer"],
+      "minimumContent": ["source id", "source type", "source location", "neutral summary", "known limitations"],
+      "hardRules": ["No decision-relevant product idea or generated requirement may appear in final specs unless traceable to a source, reference or product decision."]
+    },
+    {
+      "path": "discovery/IDEA_BRIEF.md",
+      "responsibility": "Turn raw input into initial product understanding.",
+      "limits": "Must not list detailed features, define releases, close domain behavior or decide technical stack.",
+      "createdAfter": ["discovery/SOURCE_MATERIALS.md"],
+      "usedBefore": ["PRODUCT_VISION.md", "references/<reference>.md"],
+      "consumers": ["wefter-product-reference-researcher", "wefter-product-shaper", "wefter-product-release-planner", "wefter-product-auditor"],
+      "minimumContent": ["problem statement", "target users", "jobs to be done", "desired outcome", "constraints", "non-goals", "source references"],
+      "hardRules": ["Stop before roadmap or release scope if problem, user and expected value are unclear."]
+    },
+    {
+      "path": "discovery/OPEN_QUESTIONS.md",
+      "responsibility": "Keep uncertainty visible and separate from closed decisions.",
+      "limits": "Must not become a backlog or long-form discussion log.",
+      "createdAfter": ["discovery/IDEA_BRIEF.md"],
+      "usedBefore": ["every publication gate"],
+      "consumers": ["all product-shaping agents", "delivery planning"],
+      "minimumContent": ["question id", "question", "impact", "blocks target release", "status", "resolution when answered"],
+      "hardRules": ["Questions affecting release scope, domain behavior, acceptance criteria or deliverables must be listed and not resolved silently.", "Open or deferred questions with Blocks target release: yes block completion."]
+    },
+    {
+      "path": "references/README.md",
+      "responsibility": "Map researched references and why each reference matters.",
+      "limits": "Must not consolidate all features, replace reference files or act as feature catalog.",
+      "createdAfter": ["references/<reference>.md"],
+      "usedBefore": ["product/FEATURE_CATALOG.md"],
+      "consumers": ["wefter-product-reference-researcher", "wefter-product-shaper", "wefter-product-auditor"],
+      "minimumContent": ["research purpose", "selection criteria", "reference map", "research date", "freshness status"],
+      "hardRules": ["Every individual reference file must be listed with focus, relevance and its references/<reference>.md path."]
+    },
+    {
+      "path": "PRODUCT_VISION.md",
+      "responsibility": "Define the product at macro level.",
+      "limits": "Must not contain detailed feature catalog, roadmap, release scope, domain rules, acceptance criteria or technical decisions.",
+      "createdAfter": ["discovery/IDEA_BRIEF.md", "references/<reference>.md"],
+      "usedBefore": ["product/FEATURE_CATALOG.md", "product/MODULE_ROADMAP.md", "releases/<release-id>/SCOPE.md"],
+      "consumers": ["all product-shaping agents"],
+      "minimumContent": ["product objective", "target users", "value summary", "product direction", "pillars", "macro non-goals", "source references"],
+      "hardRules": ["Later contradictions must stop until repaired or explicitly superseded by product decision."]
+    },
+    {
+      "path": "product/FEATURE_CATALOG.md",
+      "responsibility": "Centralize possible product capabilities from idea, references and decisions.",
+      "limits": "Is not a backlog, roadmap, release scope or delivery promise.",
+      "createdAfter": ["PRODUCT_VISION.md", "references/README.md"],
+      "usedBefore": ["product/MODULE_ROADMAP.md", "releases/<release-id>/SCOPE.md"],
+      "consumers": ["wefter-product-shaper", "wefter-product-release-planner", "wefter-product-auditor", "wefter-product-validator"],
+      "minimumContent": ["feature id", "name", "description", "source", "status", "rationale", "dependencies"],
+      "hardRules": ["Every feature must have exactly one valid feature status.", "future, rejected or needs-decision features cannot enter SCOPE.md without explicit product decision."]
+    },
+    {
+      "path": "product/MODULE_ROADMAP.md",
+      "responsibility": "Organize product evolution by conceptual priority and dependency.",
+      "limits": "Is not a calendar, sprint plan, timeline or closed delivery commitment.",
+      "createdAfter": ["product/FEATURE_CATALOG.md"],
+      "usedBefore": ["releases/<release-id>/SCOPE.md"],
+      "consumers": ["wefter-product-release-planner", "wefter-product-auditor", "delivery planning"],
+      "minimumContent": ["module or release sequence", "objectives", "capability groups", "dependencies", "future modules", "sequencing risks"],
+      "hardRules": ["Roadmap defines relative sequence and conceptual dependencies only."]
+    },
+    {
+      "path": "product/DOMAIN_MODEL.md",
+      "responsibility": "Describe conceptual business entities, relationships and modeling principles.",
+      "limits": "Is not a database schema, migration plan, ORM model or technical naming glossary.",
+      "createdAfter": ["PRODUCT_VISION.md", "product/FEATURE_CATALOG.md", "product/MODULE_ROADMAP.md"],
+      "usedBefore": ["releases/<release-id>/DOMAIN_SPEC.md", "technical-shaping"],
+      "consumers": ["wefter-product-domain-modeler", "wefter-product-release-planner", "technical-shaping", "delivery planning"],
+      "minimumContent": ["modeling principles", "business entities", "relationships", "lifecycle notes", "business invariants", "terms"],
+      "hardRules": ["Names are business names; final technical names belong to technical shaping."]
+    },
+    {
+      "path": "product/OPERATIONAL_FLOW.md",
+      "responsibility": "Describe target operational flow end to end.",
+      "limits": "Does not close release scope by itself.",
+      "createdAfter": ["product/DOMAIN_MODEL.md"],
+      "usedBefore": ["releases/<release-id>/SCOPE.md", "releases/<release-id>/DOMAIN_SPEC.md", "releases/<release-id>/ACCEPTANCE_CRITERIA.md"],
+      "consumers": ["wefter-product-domain-modeler", "wefter-product-release-planner", "wefter-product-auditor"],
+      "minimumContent": ["actors", "triggers", "preconditions", "main steps", "alternate flows", "inputs", "outputs", "future steps"],
+      "hardRules": ["Any operational step outside the target release must be marked future or out of release scope."]
+    },
+    {
+      "path": "product/PRODUCT_DECISIONS.md",
+      "responsibility": "Record closed product decisions, assumptions, risks and impacts.",
+      "limits": "Is not a changelog, backlog or full scope document.",
+      "createdAfter": ["can be created whenever decisions appear"],
+      "usedBefore": ["validation", "repair", "release planning", "deliverable shaping"],
+      "consumers": ["all product-shaping agents", "delivery planning"],
+      "minimumContent": ["decision id", "status", "date", "context", "decision", "alternatives", "rationale", "impact", "affected files"],
+      "hardRules": ["Accepted decisions that change scope, behavior, priority, tradeoff or direction must be recorded.", "Proposed unresolved decisions belong in OPEN_QUESTIONS.md."]
+    },
+    {
+      "path": "releases/README.md",
+      "responsibility": "Explain release organization and relationship between release-level files.",
+      "limits": "Must not define detailed scope or behavior for one release.",
+      "createdAfter": ["product/PRODUCT_DECISIONS.md"],
+      "usedBefore": ["releases/<release-id>/README.md"],
+      "consumers": ["wefter-product-release-planner", "wefter-product-validator", "delivery planning"],
+      "minimumContent": ["release id convention", "release map", "status", "objective", "path", "compatibility notes"],
+      "hardRules": ["Custom release paths must come from config, not hardcoded assumptions."]
+    },
+    {
+      "path": "releases/<release-id>/README.md",
+      "responsibility": "Index one release and declare precedence for release documents.",
+      "limits": "Must not replace SCOPE.md, DOMAIN_SPEC.md, ACCEPTANCE_CRITERIA.md or DELIVERABLES.md.",
+      "createdAfter": ["releases/README.md"],
+      "usedBefore": ["releases/<release-id>/SCOPE.md"],
+      "consumers": ["wefter-product-release-planner", "wefter-product-validator", "technical-shaping", "delivery planning"],
+      "minimumContent": ["release id", "status", "objective", "file index", "responsibility table", "precedence summary", "handoff rule"],
+      "hardRules": ["Must declare which file owns release scope, domain behavior, acceptance and implementation handoff."]
+    },
+    {
+      "path": "releases/<release-id>/SCOPE.md",
+      "responsibility": "Define release commitment, included scope, excluded scope, tradeoffs and boundaries.",
+      "limits": "Must not define all detailed domain rules, task specs or technical stack.",
+      "createdAfter": ["product/MODULE_ROADMAP.md", "product/DOMAIN_MODEL.md", "product/OPERATIONAL_FLOW.md"],
+      "usedBefore": ["releases/<release-id>/DOMAIN_SPEC.md", "releases/<release-id>/ACCEPTANCE_CRITERIA.md", "releases/<release-id>/DELIVERABLES.md"],
+      "consumers": ["wefter-product-release-planner", "wefter-product-domain-modeler", "delivery planning", "wefter-product-auditor"],
+      "minimumContent": ["objective", "expected outcome", "included scope", "out of scope", "tradeoffs", "assumptions", "dependencies", "blockers"],
+      "hardRules": ["Nothing may enter domain spec, acceptance criteria or deliverables if outside SCOPE.md without explicit pending scope change."]
+    },
+    {
+      "path": "releases/<release-id>/DOMAIN_SPEC.md",
+      "responsibility": "Close release domain behavior and rules.",
+      "limits": "Is not a data contract, UI spec, task plan or stack decision document.",
+      "createdAfter": ["releases/<release-id>/SCOPE.md"],
+      "usedBefore": ["releases/<release-id>/ACCEPTANCE_CRITERIA.md", "releases/<release-id>/DELIVERABLES.md", "technical-shaping"],
+      "consumers": ["wefter-product-domain-modeler", "delivery planning", "technical-shaping", "wefter-product-auditor"],
+      "minimumContent": ["closed domain decisions", "entities", "domain rules", "state model", "permissions", "validations", "exceptions", "unresolved questions"],
+      "hardRules": ["Unresolved domain rules cannot become implementable deliverables without a human gate."]
+    },
+    {
+      "path": "releases/<release-id>/ACCEPTANCE_CRITERIA.md",
+      "responsibility": "Turn scope and domain behavior into verifiable release readiness criteria.",
+      "limits": "Must not redefine scope or introduce domain rules absent from DOMAIN_SPEC.md or PRODUCT_DECISIONS.md.",
+      "createdAfter": ["releases/<release-id>/DOMAIN_SPEC.md"],
+      "usedBefore": ["releases/<release-id>/DELIVERABLES.md", "delivery implementation"],
+      "consumers": ["wefter-product-release-planner", "delivery planning", "task reviewer", "wefter-product-validator"],
+      "minimumContent": ["acceptance objective", "release accepted definition", "end-to-end flows", "preconditions", "expected outcomes", "negative scenarios", "traceability"],
+      "hardRules": ["Every criterion must be testable, observable or objectively verifiable."]
+    },
+    {
+      "path": "releases/<release-id>/DELIVERABLES.md",
+      "responsibility": "Convert the release into ordered, small, verifiable deliverables ready for delivery implementation.",
+      "limits": "Must not contain task specs, code, detailed implementation plans or task-level TDD requirements.",
+      "createdAfter": ["releases/<release-id>/ACCEPTANCE_CRITERIA.md"],
+      "usedBefore": ["delivery implementation"],
+      "consumers": ["delivery orchestrator", "delivery planner", "plan auditors", "validators"],
+      "minimumContent": ["stable id", "status", "goal", "scope", "out of scope", "dependencies", "source docs", "acceptance criteria", "risk areas", "human gate triggers", "expected verification"],
+      "hardRules": ["Every deliverable must have exactly one valid deliverable status.", "Only ready deliverables may enter delivery implementation without an additional human gate.", "Do not include task specs."]
+    }
+  ]
+}

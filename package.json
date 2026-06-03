@@ -1,6 +1,6 @@
 {
   "name": "@wefter/opencode",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Installable Wefter workflows for OpenCode projects.",
   "type": "module",
   "repository": {

@@ -16,6 +16,7 @@ Then restart OpenCode and run:
 
 ```text
 /wefter-generate-doc-audit-profile
+/wefter-shape-product
 /wefter-audit-docs
 /wefter-repair-docs
 /wefter-run-work-unit

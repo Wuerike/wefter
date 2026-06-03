@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "workflowName": "product-shaping",
+  "releaseId": "01_mvp",
+  "specRoot": ".wefter/specs",
+  "runRoot": ".wefter/runs/product-shaping",
+  "contractPath": ".wefter/workflows/product-shaping/contracts/product-spec-contract.json",
+  "processDocPath": ".wefter/workflows/product-shaping/README.md",
+  "requiredFiles": [
+    "README.md",
+    "discovery/SOURCE_MATERIALS.md",
+    "discovery/IDEA_BRIEF.md",
+    "discovery/OPEN_QUESTIONS.md",
+    "references/README.md",
+    "PRODUCT_VISION.md",
+    "product/FEATURE_CATALOG.md",
+    "product/MODULE_ROADMAP.md",
+    "product/DOMAIN_MODEL.md",
+    "product/OPERATIONAL_FLOW.md",
+    "product/PRODUCT_DECISIONS.md",
+    "releases/README.md",
+    "releases/<release-id>/README.md",
+    "releases/<release-id>/SCOPE.md",
+    "releases/<release-id>/DOMAIN_SPEC.md",
+    "releases/<release-id>/ACCEPTANCE_CRITERIA.md",
+    "releases/<release-id>/DELIVERABLES.md"
+  ],
+  "completionGate": {
+    "requireNoReleaseBlockingQuestions": true,
+    "requireAdversarialReview": true,
+    "requireFinalValidation": true,
+    "readyDeliverableStatuses": ["ready"]
+  }
+}
