@@ -21,7 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - name: Checkout tag
         uses: actions/checkout@v4
