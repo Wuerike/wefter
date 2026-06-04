@@ -61,6 +61,7 @@ For `NO_FINDINGS`, explain which README obligations and artifact classes were ch
 - If an item depends on interpretation, mark it as ambiguity or probable, not as confirmed conflict.
 - Every finding must cite concrete evidence with file and quote.
 - If there are no findings, still write the file with the `NO_FINDINGS` section.
+- If the runtime prevents writing `{{OUTPUT_FILE}}`, stop immediately and report that blocker. Do not continue auditing indefinitely.
 
 ## Output Format
 

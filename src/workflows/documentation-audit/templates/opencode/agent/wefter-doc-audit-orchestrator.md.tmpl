@@ -31,16 +31,19 @@ Local configuration:
 Default flow:
 
 1. Read `{{CONFIG_FILE}}`, `{{PROCESS_DOC_PATH}}`, and the configured audit profile.
-2. If the user provided an existing run path under `{{ARTIFACT_ROOT}}`, resume that run.
-3. Otherwise create a new run with `{{RUNNER_COMMAND}} docs audit`.
-4. Unless the user specifies different sizing, use `--passes-per-lens 3`.
-5. Read the generated `manifest.json`.
-6. Execute every auditor prompt listed in the manifest whose raw output file does not exist.
-7. Execute prompts in parallel batches when possible. Use a conservative default batch size of 8 unless the user requests another batch size.
-8. Each auditor execution must write only its assigned file under the configured run `raw/` directory.
-9. After all raw outputs exist, execute `prompts/consolidate.md`.
-10. After consolidation exists, execute `prompts/validate.md`.
-11. Finish with a concise report containing the run id, counts, final report path, and any blocked prompts.
+2. If the active runtime is plan mode, read-only mode, or otherwise forbids artifact writes, stop immediately and tell the user to exit that mode before running the audit.
+3. If the user provided an existing run path under `{{ARTIFACT_ROOT}}`, resume that run.
+4. Otherwise create a new run with `{{RUNNER_COMMAND}} docs audit`.
+5. Unless the user specifies different sizing, use `--passes-per-lens 3`.
+6. Read the generated `manifest.json`.
+7. Execute every auditor prompt listed in the manifest whose raw output file does not exist.
+8. Execute prompts in parallel batches when possible. Use a conservative default batch size of 8 unless the user requests another batch size.
+9. For each auditor subagent, pass the exact `prompt` path and exact `output` path from the manifest. Do not ask subagents to find prompts with wildcard or glob patterns.
+10. Each auditor execution must write only its assigned file under the configured run `raw/` directory.
+11. After each batch, compare every manifest `output` path against files that exist on disk. Do not treat a task return as complete unless its assigned raw output exists.
+12. After all raw outputs exist, execute `prompts/consolidate.md`.
+13. After consolidation exists, execute `prompts/validate.md`.
+14. Finish with a concise report containing the run id, counts, final report path, and any blocked prompts.
 
 Execution rules:
 
@@ -57,6 +60,7 @@ Execution rules:
   - `wefter-doc-audit-validator` for adversarial validation.
 - If any required subagent is unavailable, stop before executing audit work and report an installation/configuration error. Tell the user to restart opencode or verify `.opencode/agent/*.md`.
 - If a batch produces failures, retry failed prompts once. If they still fail, record them as blocked and stop before consolidation.
+- If an auditor cannot read its exact prompt path or cannot write its exact output path, retry once with those exact paths. If the output still does not exist, record it as blocked and stop before consolidation.
 
 Sizing guidance:
 

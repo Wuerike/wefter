@@ -144,8 +144,10 @@ test("init installs config, OpenCode files, and doctor passes", () => {
   assert.ok(fs.existsSync(path.join(target, ".opencode", "skills", "product-shaping", "SKILL.md")));
   assert.ok(fs.existsSync(path.join(target, ".opencode", "skills", "documentation-repair", "SKILL.md")));
   assert.ok(fs.existsSync(path.join(target, ".opencode", "skills", "work-unit-implementation", "SKILL.md")));
+  assert.match(fs.readFileSync(path.join(target, ".opencode", "skills", "documentation-audit", "SKILL.md"), "utf8"), /Do not run audit execution in plan mode/);
   assert.ok(fs.existsSync(path.join(target, ".wefter", "workflows", "product-shaping", "config.json")));
   assert.ok(fs.existsSync(path.join(target, ".wefter", "workflows", "product-shaping", "profile.json")));
+  assert.match(fs.readFileSync(path.join(target, ".wefter", "workflows", "product-shaping", "templates", "documentation-audit", "workflow-self-audit-auditor-prompt.md"), "utf8"), /runtime prevents writing/);
   assert.ok(fs.existsSync(path.join(target, ".wefter", "workflows", "work-unit-implementation", "profile.json")));
   assert.ok(!fs.existsSync(path.join(target, ".wefter", "workflows", "work-unit-implementation", "lenses.json")));
   assert.equal(readJson(path.join(target, "opencode.json")).command["wefter-shape-product"].agent, "wefter-product-orchestrator");
@@ -327,7 +329,13 @@ test("docs audit dry-run and real run generate expected artifacts", () => {
   assert.equal(manifest.workflowId, "documentation-audit");
   assert.equal(manifest.auditorPromptPath, ".wefter/workflows/documentation-audit/templates/auditor-prompt.md");
   assert.equal(manifest.prompts.length, 2);
-  assert.match(fs.readFileSync(path.join(target, ".audit", "wefter", "documentation-audit", "audit-run", "prompts", "auditors", "A0001__documentation-map-consistency__explicit-contradictions__p01.md"), "utf8"), /# Individual Documentation Audit/);
+  const prompt = fs.readFileSync(path.join(target, ".audit", "wefter", "documentation-audit", "audit-run", "prompts", "auditors", "A0001__documentation-map-consistency__explicit-contradictions__p01.md"), "utf8");
+  assert.match(prompt, /# Individual Documentation Audit/);
+  assert.match(prompt, /runtime prevents writing/);
+  const readme = fs.readFileSync(path.join(target, ".audit", "wefter", "documentation-audit", "audit-run", "README.md"), "utf8");
+  assert.match(readme, /Do not execute this run in plan mode/);
+  assert.match(readme, /exact prompt and output paths/);
+  assert.match(readme, /wildcard or glob patterns/);
   assert.ok(fs.existsSync(path.join(target, ".audit", "wefter", "documentation-audit", "audit-run", "prompts", "consolidate.md")));
 });
 

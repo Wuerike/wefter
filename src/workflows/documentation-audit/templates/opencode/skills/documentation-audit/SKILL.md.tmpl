@@ -16,6 +16,7 @@ Local workflow files:
 
 Operational rules:
 
+- Do not run audit execution in plan mode or any read-only runtime. If artifact writes are forbidden, stop immediately and ask the user to exit that mode before auditing.
 - Audit is read-only with respect to source docs. Raw, consolidation, validation and final outputs are written under the configured artifact root.
 - Do not fix documentation during an audit run.
 - Do not assume source-of-truth precedence while auditing.
