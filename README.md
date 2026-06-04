@@ -10,7 +10,7 @@ Wefter is usable locally for `product-shaping`, `documentation-audit`, `document
 
 ```text
 package: @wefter/opencode
-repo: opencode-wefter
+repo: wefter
 cli: wefter
 config: wefter.config.json
 local workflow files: .wefter/
@@ -31,13 +31,14 @@ runtime artifacts: .audit/wefter/ for legacy workflows; .wefter/runs/ for produc
 
 ```bash
 npm run check
+npm test
 node bin/wefter.js --help
 ```
 
 Install into another project from this checkout:
 
 ```bash
-node <path-to-opencode-wefter>/bin/wefter.js init --target <path-to-project> --yes
+node <path-to-wefter>/bin/wefter.js init --target <path-to-project> --yes
 ```
 
 ## Intended User Flow
@@ -118,8 +119,8 @@ wefter new-run documentation-audit --passes-per-lens 1 --max-audits 12
 
 ## Product Direction
 
-Next hardening steps after the `0.2.0` product-shaping release:
+Next hardening steps after the `0.2.1` stabilization release:
 
 1. Add installation manifest/uninstall support.
 2. Continue migration from legacy `work-unit-implementation` naming toward `delivery-implementation`.
-3. Harden release and package publishing automation.
+3. Implement `technical-shaping` only after its contract, CLI behavior and OpenCode command are ready.

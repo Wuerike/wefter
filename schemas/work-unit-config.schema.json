@@ -7,7 +7,7 @@
     "version": { "const": 1 },
     "workflowName": { "const": "work-unit-implementation" },
     "releaseId": { "type": "string", "minLength": 1 },
-    "workUnitsDocument": { "type": "string", "minLength": 1 },
+    "workUnitsDocument": { "$ref": "#/$defs/relativePath" },
     "sourceDocs": {
       "type": "object",
       "required": ["include", "exclude"],
@@ -17,13 +17,13 @@
       },
       "additionalProperties": false
     },
-    "runArtifactsRoot": { "type": "string", "minLength": 1 },
+    "runArtifactsRoot": { "$ref": "#/$defs/relativePath" },
     "versionedArtifacts": {
       "type": "object",
       "required": ["executionRoot", "decisionLogRoot"],
       "properties": {
-        "executionRoot": { "type": "string", "minLength": 1 },
-        "decisionLogRoot": { "type": "string", "minLength": 1 }
+        "executionRoot": { "$ref": "#/$defs/relativePath" },
+        "decisionLogRoot": { "$ref": "#/$defs/relativePath" }
       },
       "additionalProperties": false
     },
@@ -40,5 +40,12 @@
       "additionalProperties": false
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$))[^\r\n]+$"
+    }
+  }
 }

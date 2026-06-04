@@ -9,7 +9,7 @@ npx @wefter/opencode init
 From a local checkout:
 
 ```bash
-node <path-to-opencode-wefter>/bin/wefter.js init --target <path-to-project> --yes
+node <path-to-wefter>/bin/wefter.js init --target <path-to-project> --yes
 ```
 
 Then restart OpenCode and run:

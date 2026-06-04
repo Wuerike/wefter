@@ -4,6 +4,10 @@
   "title": "Technical Shaping",
   "summary": "Shapes product documentation into explicit technical decisions, implementation constraints, data contracts and verification expectations.",
   "commands": {
+    "cli": [],
+    "opencode": []
+  },
+  "plannedCommands": {
     "cli": ["wefter technical shape"],
     "opencode": ["/wefter-shape-technical"]
   }

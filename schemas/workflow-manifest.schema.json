@@ -10,6 +10,16 @@
     "summary": { "type": "string", "minLength": 1 },
     "commands": {
       "type": "object",
+      "required": ["cli", "opencode"],
+      "properties": {
+        "cli": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "opencode": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      },
+      "additionalProperties": false
+    },
+    "plannedCommands": {
+      "type": "object",
+      "required": ["cli", "opencode"],
       "properties": {
         "cli": { "type": "array", "items": { "type": "string", "minLength": 1 } },
         "opencode": { "type": "array", "items": { "type": "string", "minLength": 1 } }

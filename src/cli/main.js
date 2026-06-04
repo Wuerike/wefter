@@ -5,7 +5,7 @@ import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { fileURLToPath } from "node:url";
 
-const VERSION = "0.2.0";
+const VERSION = "0.2.1";
 const CONFIG_FILE = "wefter.config.json";
 const PRODUCT_SHAPING_WORKFLOW_ID = "product-shaping";
 const DOCUMENTATION_REPAIR_WORKFLOW_ID = "documentation-repair";
@@ -119,6 +119,52 @@ function parseArgs(argv) {
   }
 
   return { positional, flags };
+}
+
+function allowedFlagsForCommand(command, subcommand) {
+  if (command === "init") {
+    return ["yes", "force", "target", "profile-path", "artifact-root", "template-root", "process-doc-path", "runner-command"];
+  }
+  if (command === "new-run") {
+    return ["target", "profile-path", "run-name", "passes-per-lens", "max-audits", "dry-run"];
+  }
+  if (command === "docs" && subcommand === "audit") {
+    return ["target", "profile-path", "run-name", "passes-per-lens", "max-audits", "dry-run"];
+  }
+  if (command === "docs" && subcommand === "repair") {
+    return ["target", "audit-report", "run-name", "dry-run"];
+  }
+  if (command === "product" && subcommand === "shape") {
+    return ["target", "release-id", "run-name", "spec-root", "run-root", "config-path", "profile-path", "dry-run"];
+  }
+  if (command === "product" && subcommand === "validate") {
+    return ["target", "release-id", "run-id", "run-root", "config-path", "json"];
+  }
+  if (command === "work-unit" && subcommand === "run") {
+    return ["target", "work-unit-id", "work-units-document", "release-id", "product-run-id", "product-run-root", "run-name", "passes-per-lens", "max-audits", "config-path", "profile-path", "dry-run"];
+  }
+  if (command === "work-unit" && subcommand === "guard") {
+    return ["target", "run-id", "run-root", "task-id", "mode", "config-path", "json"];
+  }
+  if (command === "profile" && subcommand === "scaffold") {
+    return ["target", "force"];
+  }
+  if (command === "profile" && subcommand === "import") {
+    return ["target", "source", "force"];
+  }
+  if (command === "doctor") {
+    return ["target"];
+  }
+  return null;
+}
+
+function assertKnownFlags(flags, allowedFlags) {
+  const allowed = new Set(["help", "version", ...allowedFlags]);
+  for (const key of Object.keys(flags)) {
+    if (!allowed.has(key)) {
+      throw new Error(`Unsupported option --${key} for this command.`);
+    }
+  }
 }
 
 function packageRoot() {
@@ -2594,6 +2640,10 @@ export async function main(argv = process.argv.slice(2)) {
   }
 
   const [command, subcommand] = positional;
+  const allowedFlags = allowedFlagsForCommand(command, subcommand);
+  if (allowedFlags) {
+    assertKnownFlags(flags, allowedFlags);
+  }
   if (command === "init") {
     await commandInit(flags);
     return;

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Git tag to publish, for example v0.2.0"
+        description: "Git tag to publish, for example v0.2.1"
         required: true
         type: string
 
@@ -22,10 +22,8 @@ jobs:
     env:
       TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
     steps:
-      - name: Checkout tag
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -47,6 +45,20 @@ jobs:
           set -euo pipefail
           if [[ ! "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Tag must look like vMAJOR.MINOR.PATCH, got: $TAG_NAME" >&2
+            exit 1
+          fi
+
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$TAG_NAME" >/dev/null; then
+            echo "Ref must be an existing git tag, got: $TAG_NAME" >&2
+            exit 1
+          fi
+
+          git fetch --force --depth=1 origin "refs/tags/$TAG_NAME:refs/tags/$TAG_NAME"
+          TAG_COMMIT="$(git rev-list -n 1 "refs/tags/$TAG_NAME")"
+          git checkout --detach "$TAG_COMMIT"
+          HEAD_COMMIT="$(git rev-parse HEAD)"
+          if [[ "$HEAD_COMMIT" != "$TAG_COMMIT" ]]; then
+            echo "Checked out ref $HEAD_COMMIT does not match tag $TAG_NAME at $TAG_COMMIT" >&2
             exit 1
           fi
 

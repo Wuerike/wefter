@@ -158,7 +158,41 @@ test("init installs config, OpenCode files, and doctor passes", () => {
 });
 
 test("version flag reports package version", () => {
-  assert.equal(run(["--version"]).stdout.trim(), "0.2.0");
+  assert.equal(run(["--version"]).stdout.trim(), "0.2.1");
+});
+
+test("unknown command flags are rejected", () => {
+  const target = initTarget("unknown-flags");
+
+  assert.match(run(["docs", "audit", "--target", target, "--passes", "1"], { expectFailure: true }).stderr, /Unsupported option --passes/);
+  assert.match(run(["product", "shape", "--target", target, "--work-unit-id", "0"], { expectFailure: true }).stderr, /Unsupported option --work-unit-id/);
+});
+
+test("documented command flags remain accepted by the command allowlist", () => {
+  const target = initTarget("known-flags");
+  const auditProfile = ".wefter/workflows/documentation-audit/profile.json";
+  const productConfig = ".wefter/workflows/product-shaping/config.json";
+  const productProfile = ".wefter/workflows/product-shaping/profile.json";
+  const workUnitConfig = ".wefter/workflows/work-unit-implementation/config.json";
+  const workUnitProfile = ".wefter/workflows/work-unit-implementation/profile.json";
+  const reportPath = path.join(".audit", "wefter", "documentation-audit", "flag-run", "final", "final-documentation-audit-report.md");
+  const importProfilePath = path.join("docs", "audits", "import.json");
+  writeText(path.join(target, reportPath), "# Final Documentation Audit Report\n");
+  writeJsonFile(path.join(target, importProfilePath), smallProfile("Import flags"));
+
+  run(["docs", "audit", "--target", target, "--profile-path", auditProfile, "--run-name", "docs-flags", "--passes-per-lens", "1", "--max-audits", "1", "--dry-run"]);
+  run(["new-run", "documentation-audit", "--target", target, "--profile-path", auditProfile, "--run-name", "new-run-flags", "--passes-per-lens", "1", "--max-audits", "1", "--dry-run"]);
+  run(["docs", "repair", "--target", target, "--audit-report", reportPath, "--run-name", "repair-flags", "--dry-run"]);
+  run(["product", "shape", "--target", target, "--release-id", "02_patch", "--run-name", "product-flags", "--spec-root", ".wefter/specs", "--run-root", ".wefter/runs/product-shaping", "--config-path", productConfig, "--profile-path", productProfile, "--dry-run"]);
+  run(["work-unit", "run", "--target", target, "--work-unit-id", "0", "--release-id", "01_mvp", "--run-name", "work-unit-flags", "--passes-per-lens", "1", "--max-audits", "1", "--config-path", workUnitConfig, "--profile-path", workUnitProfile, "--dry-run"]);
+  run(["profile", "import", "--target", target, "--source", importProfilePath, "--force"]);
+  run(["profile", "scaffold", "--target", target, "--force"]);
+  run(["doctor", "--target", target]);
+
+  const validate = run(["product", "validate", "--target", target, "--release-id", "01_mvp", "--run-id", "missing-run", "--config-path", productConfig, "--json"], { expectFailure: true });
+  assert.doesNotMatch(validate.stderr, /Unsupported option/);
+  const guard = run(["work-unit", "guard", "--target", target, "--run-id", "missing-run", "--mode", "Status", "--config-path", workUnitConfig, "--json"], { expectFailure: true });
+  assert.doesNotMatch(guard.stderr, /Unsupported option/);
 });
 
 test("product shaping can be explicitly disabled", () => {

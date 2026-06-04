@@ -7,9 +7,11 @@ Wefter workflow IDs are stable nouns. CLI and OpenCode commands use verbs.
 | `product-shaping` | `wefter product shape`, `wefter product validate` | `/wefter-shape-product` | Available |
 | `documentation-audit` | `wefter docs audit` | `/wefter-audit-docs` | Available |
 | `documentation-repair` | `wefter docs repair` | `/wefter-repair-docs` | Available |
-| `technical-shaping` | `wefter technical shape` | `/wefter-shape-technical` | Planned |
+| `technical-shaping` | Not installed while planned | Not installed while planned | Planned |
 | `work-unit-implementation` | `wefter work-unit run`, `wefter work-unit guard` | `/wefter-run-work-unit` | Available |
 
 The `0.2.0` release promotes `product-shaping` to available. `documentation-audit` remains executable end-to-end. `documentation-repair` can generate repair runs from final audit reports with planning, human-decision gates, repair application and review prompts. `work-unit-implementation` can generate planning runs, orchestrate plan review, enforce deterministic task/review guards and validate a completed work unit.
+
+Planned workflows may document future command names in their workflow manifest, but only commands under `commands` are executable/installed. `technical-shaping` is intentionally not installed until its contract and CLI are implemented.
 
 For workflow dogfooding and release self-audit, see `docs/SELF_AUDIT.md`.

@@ -18,6 +18,8 @@ Product-shaping example:
 node bin/wefter.js docs audit --profile-path src/workflows/product-shaping/templates/documentation-audit-profile.json --run-name product-shaping-self-audit --passes-per-lens 1 --max-audits 0
 ```
 
+The Wefter repository dogfoods documentation-audit with `artifactRoot` set to `.wefter/runs/documentation-audit` in its local `wefter.config.json`. Installed projects use the public default `.audit/wefter/documentation-audit` unless their config overrides it.
+
 Seed prompt:
 
 ```text
