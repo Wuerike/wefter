@@ -30,8 +30,16 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           registry-url: https://registry.npmjs.org/
+
+      - name: Use latest npm
+        run: npm install -g npm@latest
+
+      - name: Show publish tool versions
+        run: |
+          node --version
+          npm --version
 
       - name: Validate release tag
         shell: bash
@@ -73,4 +81,4 @@ jobs:
 
       - name: Publish to npm
         if: steps.published.outputs.already_published != 'true'
-        run: npm publish --access public --provenance
+        run: npm publish --access public --provenance --registry=https://registry.npmjs.org/
