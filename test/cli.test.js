@@ -4,8 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
-const repoRoot = path.resolve(import.meta.dirname, "..");
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cliPath = path.join(repoRoot, "bin", "wefter.js");
 
 function makeTarget(name) {
