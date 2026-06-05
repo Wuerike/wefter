@@ -16,9 +16,9 @@ The only valid handoff from product shaping to delivery implementation is the co
 
 Agents must not implement or plan implementation directly from the product-shaping README, `IDEA_BRIEF.md`, `FEATURE_CATALOG.md`, `SCOPE.md`, `DOMAIN_SPEC.md` or `ACCEPTANCE_CRITERIA.md`. They must first produce or consume the configured `DELIVERABLES.md`, then cross-check that handoff against the relevant source specs.
 
-Migration note:
+Runtime note:
 
-The current executable implementation engine may still be named `work-unit-implementation` while Wefter migrates to the target `delivery-implementation` vocabulary. Conceptually, product shaping targets `DELIVERABLES.md` and delivery implementation. During migration, `work-unit-implementation` is treated as the legacy implementation engine, not the product-shaping vocabulary.
+Product shaping targets `DELIVERABLES.md` and delivery implementation.
 
 ## Source Of Truth And Enforcement
 
@@ -142,7 +142,7 @@ Hard rules:
 4. A deliverable is not a task and must not contain task-level implementation detail.
 5. A task must not be created by product shaping; tasks are created only by delivery implementation.
 6. `Release` is the canonical Wefter term for a defined delivery scope; legacy terms such as `phase` may appear only as compatibility vocabulary and must be mapped to `release` when Wefter artifacts are generated.
-7. Legacy terms such as `work unit` or `slice` may appear only as migration or compatibility vocabulary and must be mapped to `deliverable` when Wefter artifacts are generated.
+7. Terms such as `slice` may appear only as source-material vocabulary and must be mapped to `deliverable` when Wefter artifacts are generated.
 
 ## Hard Rules For Agents
 

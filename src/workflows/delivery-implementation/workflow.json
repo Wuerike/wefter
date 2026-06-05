@@ -1,0 +1,13 @@
+{
+  "id": "delivery-implementation",
+  "status": "available",
+  "title": "Delivery Implementation",
+  "summary": "Plans, reviews, repairs, gates, implements, reviews and validates one delivery unit at a time using task-level TDD and deterministic guards.",
+  "commands": {
+    "cli": [
+      "wefter delivery run",
+      "wefter delivery guard"
+    ],
+    "opencode": ["/wefter-run-delivery"]
+  }
+}

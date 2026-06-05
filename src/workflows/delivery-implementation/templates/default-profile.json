@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "variants": [
+    {
+      "id": "coverage-gaps",
+      "title": "Coverage gaps",
+      "instruction": "Find requirements, acceptance criteria, domain rules or technical decisions that should appear in the delivery plan but are missing or lack a verifiable task."
+    },
+    {
+      "id": "overreach-and-scope-leak",
+      "title": "Overreach and scope leak",
+      "instruction": "Find tasks that implement items outside the delivery unit, outside the release scope or before required dependencies are in place."
+    },
+    {
+      "id": "implementation-risk",
+      "title": "Implementation risk",
+      "instruction": "Find risks in migrations, concurrency, permissions, incomplete data, errors, rollback, testability, coupling and hard-to-reverse decisions."
+    },
+    {
+      "id": "test-and-gate-quality",
+      "title": "Test and gate quality",
+      "instruction": "Find tasks without objective acceptance criteria, sufficient tests, automated verification or required human gates for critical decisions."
+    }
+  ],
+  "lenses": [
+    {
+      "id": "delivery-unit-vs-source-docs",
+      "title": "Delivery unit vs source docs",
+      "focus": "Compare the delivery plan with release scope, domain, data contract, acceptance criteria and technical decision documents."
+    },
+    {
+      "id": "traceability",
+      "title": "Task-rule-test traceability",
+      "focus": "Verify that each task references rules, criteria, contracts and tests, and that every relevant delivery-unit item has a corresponding task."
+    },
+    {
+      "id": "data-and-migrations",
+      "title": "Data, migrations and persistence",
+      "focus": "Evaluate schema, migrations, seeds, constraints, existing data, concurrency and logical rollback impact."
+    },
+    {
+      "id": "security-tenant-permissions",
+      "title": "Security, tenant and permissions",
+      "focus": "Evaluate company isolation, authentication, session handling, authorization, private files, tokens, rate limits and data exposure."
+    },
+    {
+      "id": "ux-errors-and-operations",
+      "title": "UX, errors and operations",
+      "focus": "Evaluate error states, messages, alternate flows, mobile-first behavior, observability, operational history and real-world operation."
+    },
+    {
+      "id": "sequencing-and-dependencies",
+      "title": "Sequencing and dependencies",
+      "focus": "Evaluate whether task order respects dependencies between delivery units, avoids rework and does not postpone critical foundations."
+    }
+  ]
+}

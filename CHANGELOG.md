@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+## 0.4.0 - 2026-06-05
+
+- Completed the internal delivery runtime rename: configs, schemas, agents, prompts, manifests and artifacts now use `delivery-implementation` vocabulary with `wefter delivery run`, `wefter delivery guard` and `/wefter-run-delivery` as the only implementation entry points.
+
 ## 0.3.0 - 2026-06-05
 
 - Added `.wefter/install-manifest.json` generation during `init` and a safe `wefter uninstall` command.

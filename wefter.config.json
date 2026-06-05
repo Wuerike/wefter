@@ -24,15 +24,15 @@
       "status": "available",
       "enabled": true
     },
+    "delivery-implementation": {
+      "status": "available",
+      "enabled": true,
+      "configPath": ".wefter/workflows/delivery-implementation/config.json",
+      "profilePath": ".wefter/workflows/delivery-implementation/profile.json"
+    },
     "technical-shaping": {
       "status": "planned",
       "enabled": false
-    },
-    "work-unit-implementation": {
-      "status": "available",
-      "enabled": true,
-      "configPath": ".wefter/workflows/work-unit-implementation/config.json",
-      "profilePath": ".wefter/workflows/work-unit-implementation/profile.json"
     }
   }
 }

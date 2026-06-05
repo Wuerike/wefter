@@ -24,7 +24,7 @@ These files must not encode any single product domain.
 - `templateRoot`: installed documentation audit prompt templates.
 - `processDocPath`: installed workflow documentation.
 - `runnerCommand`: command used by OpenCode orchestrators to invoke Wefter.
-- `workflows`: registry of available and planned workflow IDs, with workflow-specific paths such as work-unit `configPath` and `profilePath`.
+- `workflows`: registry of available and planned workflow IDs, with workflow-specific paths such as delivery `configPath` and `profilePath`.
 
 Paths are repository-relative and validated before use.
 
@@ -35,10 +35,10 @@ Workflow modules live under `src/workflows/<workflow-id>/` and expose `workflow.
 - `product-shaping`
 - `documentation-audit`
 - `documentation-repair`
+- `delivery-implementation`
 - `technical-shaping`
-- `work-unit-implementation`
 
-`product-shaping` is available for product spec generation and gated `DELIVERABLES.md` handoff. `documentation-audit` is executable end-to-end through the CLI. `documentation-repair` generates gated repair runs from validated audit reports. `work-unit-implementation` can generate planning runs, install OpenCode agents, enforce deterministic task/review guards and validate completed work units.
+`product-shaping` is available for product spec generation and gated `DELIVERABLES.md` handoff. `documentation-audit` is executable end-to-end through the CLI. `documentation-repair` generates gated repair runs from validated audit reports. `delivery-implementation` can generate planning runs, install OpenCode agents, enforce deterministic task/review guards and validate completed delivery work.
 
 ## Documentation Audit Run
 
@@ -65,11 +65,11 @@ The installer writes:
 
 - `.opencode/agent/wefter-doc-*.md`
 - `.opencode/agent/wefter-product-*.md`
-- `.opencode/agent/wefter-work-unit-*.md`
+- `.opencode/agent/wefter-delivery-*.md`
 - `.opencode/skills/documentation-audit/SKILL.md`
 - `.opencode/skills/documentation-repair/SKILL.md`
+- `.opencode/skills/delivery-implementation/SKILL.md`
 - `.opencode/skills/product-shaping/SKILL.md`
-- `.opencode/skills/work-unit-implementation/SKILL.md`
-- `opencode.json` commands `/wefter-generate-doc-audit-profile`, `/wefter-shape-product`, `/wefter-audit-docs`, `/wefter-repair-docs` and `/wefter-run-work-unit`
+- `opencode.json` commands `/wefter-generate-doc-audit-profile`, `/wefter-shape-product`, `/wefter-audit-docs`, `/wefter-repair-docs` and `/wefter-run-delivery`
 
 OpenCode must be restarted after installation because configuration is loaded once at startup.

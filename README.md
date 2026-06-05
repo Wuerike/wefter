@@ -4,7 +4,7 @@ Wefter installs reusable OpenCode workflows that weave product intent into audit
 
 ## Status
 
-Wefter is usable locally for `product-shaping`, `documentation-audit`, `documentation-repair`, and `work-unit-implementation`. Product shaping is available by default and includes CLI run generation, OpenCode integration, validation gates and audited `DELIVERABLES.md` handoff.
+Wefter is usable locally for `product-shaping`, `documentation-audit`, `documentation-repair`, and `delivery-implementation`. Product shaping is available by default and includes CLI run generation, OpenCode integration, validation gates and audited `DELIVERABLES.md` handoff.
 
 ## Package
 
@@ -15,7 +15,7 @@ cli: wefter
 config: wefter.config.json
 install manifest: .wefter/install-manifest.json
 local workflow files: .wefter/
-runtime artifacts: .audit/wefter/ for legacy workflows; .wefter/runs/ for product-shaping
+runtime artifacts: .audit/wefter/ for audit, repair and delivery workflows; .wefter/runs/ for product-shaping
 ```
 
 ## Workflows
@@ -25,8 +25,8 @@ runtime artifacts: .audit/wefter/ for legacy workflows; .wefter/runs/ for produc
 | `product-shaping` | Available | Shape an initial idea into product specs, release scope, acceptance criteria and deliverables. |
 | `documentation-audit` | Available | Run redundant, adversarial documentation consistency audits. |
 | `documentation-repair` | Available | Repair docs from a validated audit report without mixing detection and correction. |
+| `delivery-implementation` | Available | Implement product-shaped deliverables with planning, review guards and final validation. |
 | `technical-shaping` | Planned | Convert product docs into explicit technical decisions and implementation constraints. |
-| `work-unit-implementation` | Available | Generate planning runs, orchestrate plan review, enforce task/review guards, and validate a work unit. |
 
 ## Local Development
 
@@ -55,7 +55,7 @@ Restart OpenCode, then use the available default commands:
 /wefter-shape-product
 /wefter-audit-docs
 /wefter-repair-docs
-/wefter-run-work-unit
+/wefter-run-delivery
 ```
 
 CLI checks are also available:
@@ -68,6 +68,8 @@ wefter docs audit --passes-per-lens 1 --max-audits 12
 wefter docs audit --profile-path docs/audits/lenses.json --passes-per-lens 1 --max-audits 12
 wefter profile import --source docs/audits/lenses.json --force
 wefter docs repair --audit-report .audit/wefter/documentation-audit/<run-id>/final/final-documentation-audit-report.md
+wefter delivery run --deliverable-id 0 --product-run-id <product-run-id> --dry-run
+wefter delivery guard --run-id <run-id> --mode ReadyForFinalValidation
 wefter new-run documentation-audit --passes-per-lens 1 --max-audits 12
 wefter uninstall --dry-run
 ```
@@ -94,13 +96,13 @@ wefter uninstall --dry-run
     },
     "documentation-audit": { "status": "available", "enabled": true },
     "documentation-repair": { "status": "available", "enabled": true },
-    "technical-shaping": { "status": "planned", "enabled": false },
-    "work-unit-implementation": {
+    "delivery-implementation": {
       "status": "available",
       "enabled": true,
-      "configPath": ".wefter/workflows/work-unit-implementation/config.json",
-      "profilePath": ".wefter/workflows/work-unit-implementation/profile.json"
-    }
+      "configPath": ".wefter/workflows/delivery-implementation/config.json",
+      "profilePath": ".wefter/workflows/delivery-implementation/profile.json"
+    },
+    "technical-shaping": { "status": "planned", "enabled": false }
   }
 }
 ```
@@ -122,7 +124,7 @@ wefter uninstall --dry-run
 
 ## Product Direction
 
-Next hardening steps after the `0.3.0` install-manifest release:
+Next hardening steps after the `0.4.0` delivery implementation release:
 
-1. Continue migration from legacy `work-unit-implementation` naming toward `delivery-implementation`.
-2. Implement `technical-shaping` only after its contract, CLI behavior and OpenCode command are ready.
+1. Implement `technical-shaping` only after its contract, CLI behavior and OpenCode command are ready.
+2. Continue schema validation hardening across installed workflow configs.

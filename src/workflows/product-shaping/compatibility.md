@@ -1,4 +1,4 @@
-# Product-Shaping Delivery Handoff Compatibility
+# Product-Shaping Delivery Handoff
 
 The canonical product-shaping handoff is:
 
@@ -6,28 +6,27 @@ The canonical product-shaping handoff is:
 .wefter/specs/releases/<release-id>/DELIVERABLES.md
 ```
 
-The current executable implementation engine is still `work-unit-implementation`. Until it is migrated to `delivery-implementation`, use an explicit compatibility mapping instead of renaming the legacy workflow.
+The public executable implementation workflow is `delivery-implementation`, and product-shaping handoff uses delivery vocabulary.
 
-## Legacy CLI Mapping
+## CLI Handoff
 
-Run the legacy implementation workflow against a product-shaping deliverables document by overriding the source document:
+Run delivery implementation against a product-shaping deliverables document after product validation has passed:
 
 ```bash
-wefter work-unit run --release-id <release-id> --work-units-document .wefter/specs/releases/<release-id>/DELIVERABLES.md --work-unit-id <deliverable-id>
+wefter delivery run --release-id <release-id> --deliverables-document .wefter/specs/releases/<release-id>/DELIVERABLES.md --product-run-id <product-run-id> --deliverable-id <deliverable-id>
 ```
 
 Mapping:
 
-| Product-shaping term | Legacy implementation term |
+| Product-shaping term | Delivery implementation term |
 | --- | --- |
 | release | release |
-| deliverable | work unit |
-| `DELIVERABLES.md` | work units document |
-| delivery implementation | `work-unit-implementation` |
+| deliverable | delivery unit |
+| `DELIVERABLES.md` | deliverables document |
+| delivery implementation | `delivery-implementation` |
 
 Rules:
 
-- This is compatibility language only.
 - Product-shaping artifacts must continue to use `deliverable` and `DELIVERABLES.md`.
-- The legacy workflow must not redefine product scope, domain behavior or acceptance criteria.
-- Future migration to `delivery-implementation` is tracked separately and remains out of scope for the product-shaping implementation release.
+- Delivery implementation must not redefine product scope, domain behavior or acceptance criteria.
+- Delivery implementation runtime paths and artifacts use delivery vocabulary.

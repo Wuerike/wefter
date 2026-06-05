@@ -31,6 +31,21 @@
               }
             }
           ]
+        },
+        "delivery-implementation": {
+          "allOf": [
+            { "$ref": "#/$defs/workflowSettings" },
+            {
+              "type": "object",
+              "required": ["status", "enabled", "configPath", "profilePath"],
+              "properties": {
+                "status": { "enum": ["available", "planned"] },
+                "enabled": { "type": "boolean", "default": true },
+                "configPath": { "$ref": "#/$defs/relativePath", "default": ".wefter/workflows/delivery-implementation/config.json" },
+                "profilePath": { "$ref": "#/$defs/relativePath", "default": ".wefter/workflows/delivery-implementation/profile.json" }
+              }
+            }
+          ]
         }
       },
       "additionalProperties": {

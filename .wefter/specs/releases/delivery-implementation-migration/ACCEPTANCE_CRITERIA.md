@@ -2,15 +2,17 @@
 
 ## Release Acceptance
 
-- A compatibility map documents old and new workflow names, commands, config paths, schema names, agent names and skill names.
-- Existing `work-unit-implementation` tests continue to pass without fixture rewrites unrelated to vocabulary.
-- New docs explain when users should use `DELIVERABLES.md` instead of `WORK_UNITS.md`.
-- Any new `delivery` command is an alias or wrapper until a full workflow rename is complete.
-- `doctor` can validate both legacy and migration-era installations.
-- Uninstall remains able to remove installed Wefter files created before and after the migration.
+- Runtime names, schemas, agents, prompts, manifests and generated artifacts use `delivery-implementation` vocabulary.
+- Public CLI and OpenCode tests exercise `delivery-implementation` commands.
+- `wefter delivery run`, `wefter delivery guard` and `/wefter-run-delivery` are available as the implementation workflow surface.
+- New docs and installed prompts use `DELIVERABLES.md` as the delivery handoff document.
+- `wefter work-unit`, `/wefter-run-work-unit` and public `work-unit-implementation` skill files are not installed.
+- `doctor` validates the delivery-era installation.
+- Uninstall removes files from current delivery-era installations.
 
 ## Non-Acceptance
 
-- The release is not accepted if existing `wefter work-unit` commands break.
+- The release is not accepted if public docs or installed OpenCode commands advertise `wefter work-unit`.
+- The release is not accepted if delivery commands create artifacts under old implementation runtime roots.
 - The release is not accepted if product shaping starts creating task specs.
 - The release is not accepted if implementation can bypass product-shaping handoff validation when consuming `DELIVERABLES.md`.

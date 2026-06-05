@@ -1,34 +1,32 @@
 # Roadmap
 
-Wefter development should move in small workflow releases. Each release must preserve installed-project compatibility unless a migration path is explicit.
+Wefter development should move in small workflow releases. Compatibility matters only for shipped behavior with users or persisted project data; otherwise prefer the simpler current vocabulary.
 
 ## Current Foundation
 
 - `product-shaping` is available and produces `DELIVERABLES.md` as the product handoff.
-- `work-unit-implementation` remains the executable implementation engine under legacy vocabulary.
+- `delivery-implementation` is available as the public implementation workflow.
+- Delivery runtime paths, artifact roots, agents, prompts and schemas use `delivery-implementation` terminology.
 - `technical-shaping` is registered as planned metadata only; it must not install commands until implemented.
 - `init` records installed files in `.wefter/install-manifest.json`; `uninstall` removes manifest-recorded files safely.
 
 ## Next Release Order
 
-1. `delivery-implementation-migration`
-2. `technical-shaping-foundation`
-3. CLI modularization and schema validation hardening
+1. `technical-shaping-foundation`
+2. CLI modularization and schema validation hardening
 
 ## Delivery Implementation Migration
 
-Goal: migrate vocabulary and defaults from `work-unit-implementation` toward `delivery-implementation` without breaking existing installations.
+Status: complete. Runtime vocabulary and defaults now use canonical `delivery-implementation` names.
 
 Required decisions:
 
-- Whether `DELIVERABLES.md` becomes the default implementation source document.
-- Which legacy command aliases remain and for how long.
-- Whether schemas are renamed, aliased or versioned in place.
-- How OpenCode agent names transition without invalidating existing configs.
+- `DELIVERABLES.md` is the default implementation source document.
+- Delivery schemas are named `delivery-*`.
+- Installed OpenCode agents use `wefter-delivery-*` names.
 
 Non-goals:
 
-- Do not remove `work-unit` commands in the first migration release.
 - Do not change product-shaping responsibilities.
 - Do not create technical design artifacts in delivery implementation.
 

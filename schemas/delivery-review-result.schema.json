@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wefter.dev/schemas/delivery-review-result.schema.json",
+  "type": "object",
+  "required": ["taskId", "result", "reviewIteration", "blockingFindings"],
+  "properties": {
+    "taskId": { "type": "string", "minLength": 1 },
+    "result": { "enum": ["Pass", "Needs Fix", "Blocked"] },
+    "reviewIteration": { "type": "integer", "minimum": 1 },
+    "blockingFindings": { "type": "array", "items": { "type": "string" } }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "result": { "enum": ["Needs Fix", "Blocked"] } },
+        "required": ["result"]
+      },
+      "then": {
+        "properties": { "blockingFindings": { "minItems": 1 } }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

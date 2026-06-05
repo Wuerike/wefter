@@ -6,12 +6,12 @@ import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { fileURLToPath } from "node:url";
 
-const VERSION = "0.3.0";
+const VERSION = "0.4.0";
 const CONFIG_FILE = "wefter.config.json";
 const INSTALL_MANIFEST_FILE = ".wefter/install-manifest.json";
 const PRODUCT_SHAPING_WORKFLOW_ID = "product-shaping";
 const DOCUMENTATION_REPAIR_WORKFLOW_ID = "documentation-repair";
-const WORK_UNIT_WORKFLOW_ID = "work-unit-implementation";
+const DELIVERY_WORKFLOW_ID = "delivery-implementation";
 const DEFAULTS = Object.freeze({
   workflowRoot: ".wefter/workflows",
   profilePath: ".wefter/workflows/documentation-audit/profile.json",
@@ -74,8 +74,8 @@ Usage:
   wefter product validate [--target <path>] [--release-id <id>] [--run-id <id> | --run-root <path>] [--config-path <path>] [--json]
   wefter docs audit [--target <path>] [--profile-path <path>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--dry-run]
   wefter docs repair [--target <path>] --audit-report <path> [--run-name <name>] [--dry-run]
-  wefter work-unit run [--target <path>] [--work-unit-id <id>] [--work-units-document <path>] [--release-id <id>] [--product-run-id <id> | --product-run-root <path>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--config-path <path>] [--profile-path <path>] [--dry-run]
-  wefter work-unit guard [--target <path>] [--run-id <id> | --run-root <path>] [--task-id <id>] [--mode Status|ReadyForReview|ReadyForNextTask|ReadyForFinalValidation] [--config-path <path>] [--json]
+  wefter delivery run [--target <path>] [--deliverable-id <id>] [--deliverables-document <path>] [--release-id <id>] [--product-run-id <id> | --product-run-root <path>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--config-path <path>] [--profile-path <path>] [--dry-run]
+  wefter delivery guard [--target <path>] [--run-id <id> | --run-root <path>] [--task-id <id>] [--mode Status|ReadyForReview|ReadyForNextTask|ReadyForFinalValidation] [--config-path <path>] [--json]
   wefter new-run documentation-audit [--target <path>] [--profile-path <path>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--dry-run]
   wefter profile scaffold [--target <path>] [--force]
   wefter profile import [--target <path>] --source <path> [--force]
@@ -88,8 +88,8 @@ Commands:
   product validate  Validate product-shaping specs against the completion gate.
   docs audit        Generate one documentation audit run from the configured profile.
   docs repair       Generate one documentation repair run from a final audit report.
-  work-unit run     Generate one work-unit implementation run.
-  work-unit guard   Validate task/review loop state for a work-unit run.
+  delivery run      Generate one delivery implementation run.
+  delivery guard    Validate task/review loop state for a delivery run.
   new-run           Generate one workflow run. Currently supports documentation-audit.
   profile scaffold  Create a heuristic starter audit profile for the current repository.
   profile import    Import a repository-relative documentation audit profile into the configured profile path.
@@ -147,10 +147,10 @@ function allowedFlagsForCommand(command, subcommand) {
   if (command === "product" && subcommand === "validate") {
     return ["target", "release-id", "run-id", "run-root", "config-path", "json"];
   }
-  if (command === "work-unit" && subcommand === "run") {
-    return ["target", "work-unit-id", "work-units-document", "release-id", "product-run-id", "product-run-root", "run-name", "passes-per-lens", "max-audits", "config-path", "profile-path", "dry-run"];
+  if (command === "delivery" && subcommand === "run") {
+    return ["target", "deliverable-id", "deliverables-document", "release-id", "product-run-id", "product-run-root", "run-name", "passes-per-lens", "max-audits", "config-path", "profile-path", "dry-run"];
   }
-  if (command === "work-unit" && subcommand === "guard") {
+  if (command === "delivery" && subcommand === "guard") {
     return ["target", "run-id", "run-root", "task-id", "mode", "config-path", "json"];
   }
   if (command === "profile" && subcommand === "scaffold") {
@@ -194,8 +194,8 @@ function productShapingWorkflowPackageRoot() {
   return workflowPackageRoot(PRODUCT_SHAPING_WORKFLOW_ID);
 }
 
-function workUnitWorkflowPackageRoot() {
-  return workflowPackageRoot(WORK_UNIT_WORKFLOW_ID);
+function deliveryWorkflowPackageRoot() {
+  return workflowPackageRoot(DELIVERY_WORKFLOW_ID);
 }
 
 function documentationRepairArtifactRoot() {
@@ -234,6 +234,9 @@ function normalizeRelativePath(value, label) {
   const trimmed = value.trim().replaceAll("\\", "/");
   if (trimmed.includes("\n") || trimmed.includes("\r")) {
     throw new Error(`${label} must not contain line breaks.`);
+  }
+  if (/^[A-Za-z]:/.test(trimmed) || trimmed.startsWith("//")) {
+    throw new Error(`${label} must be relative to the target repository.`);
   }
   if (path.isAbsolute(trimmed)) {
     throw new Error(`${label} must be relative to the target repository.`);
@@ -302,6 +305,28 @@ function requireStringArray(value, label) {
   value.forEach((item, index) => requireString(item, `${label}[${index}]`));
 }
 
+function requireStrictInteger(value, label, minimum) {
+  if (!Number.isInteger(value) || value < minimum) {
+    throw new Error(`${label} must be an integer greater than or equal to ${minimum}.`);
+  }
+  return value;
+}
+
+function parseStrictInteger(value, label, minimum) {
+  if (typeof value !== "string" || !/^\d+$/.test(value)) {
+    throw new Error(`${label} must be an integer greater than or equal to ${minimum}.`);
+  }
+  return requireStrictInteger(Number(value), label, minimum);
+}
+
+function normalizeRelativeGlob(value, label) {
+  const normalized = normalizeRelativePath(value, label);
+  if (normalized.startsWith("~")) {
+    throw new Error(`${label} must be relative to the target repository.`);
+  }
+  return normalized;
+}
+
 function assertUniqueIds(items, label) {
   const seen = new Set();
   for (const item of items) {
@@ -345,22 +370,22 @@ function assertPlainRunId(value) {
   assertSafeRunName(value);
 }
 
-function getSafeWorkUnitKey(value) {
+function getSafeDeliveryUnitKey(value) {
   if (typeof value !== "string" || value.trim() === "") {
-    throw new Error("Work unit id must not be empty.");
+    throw new Error("Delivery unit id must not be empty.");
   }
 
   const trimmed = value.trim();
-  if (/^work-unit-[A-Za-z0-9_.-]+$/.test(trimmed)) {
+  if (/^delivery-unit-[A-Za-z0-9_.-]+$/.test(trimmed)) {
     return trimmed.toLowerCase();
   }
   if (/^\d+$/.test(trimmed)) {
-    return `work-unit-${String(Number.parseInt(trimmed, 10)).padStart(2, "0")}`;
+    return `delivery-unit-${String(Number.parseInt(trimmed, 10)).padStart(2, "0")}`;
   }
   if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(trimmed)) {
-    throw new Error("Work unit id may contain only letters, numbers, dot, underscore and hyphen, and must start with a letter or number.");
+    throw new Error("Delivery unit id may contain only letters, numbers, dot, underscore and hyphen, and must start with a letter or number.");
   }
-  return `work-unit-${trimmed.toLowerCase()}`;
+  return `delivery-unit-${trimmed.toLowerCase()}`;
 }
 
 function ensureInside(targetRoot, candidate, label) {
@@ -451,14 +476,38 @@ function knownOpencodeCommandNames() {
     "wefter-generate-doc-audit-profile",
     "wefter-repair-docs",
     "wefter-shape-product",
-    "wefter-run-work-unit"
+    "wefter-run-delivery"
   ];
 }
 
+function removeIfExistsInside(targetRoot, relativePath) {
+  const fullPath = path.join(targetRoot, relativePath);
+  if (!fs.existsSync(fullPath)) {
+    return;
+  }
+  ensureInside(targetRoot, fullPath, "legacy Wefter file");
+  fs.rmSync(fullPath, { recursive: true, force: true });
+}
+
+function removeDeliveryOpenCodeArtifacts(targetRoot) {
+  removeIfExistsInside(targetRoot, ".opencode/skills/delivery-implementation");
+  const agentRoot = path.join(targetRoot, ".opencode/agent");
+  if (!fs.existsSync(agentRoot)) {
+    return;
+  }
+  ensureInside(targetRoot, agentRoot, "delivery Wefter agent root");
+  for (const file of fs.readdirSync(agentRoot)) {
+    if (file.startsWith("wefter-delivery-") && file.endsWith(".md")) {
+      removeIfExistsInside(targetRoot, path.join(".opencode/agent", file));
+    }
+  }
+}
+
 function configuredWatcherIgnores(targetRoot, config) {
-  const workUnitConfig = readJsonIfExists(path.join(targetRoot, workUnitConfigPath(config)), "work-unit config");
+  const deliverySettings = workflowSettings(config, DELIVERY_WORKFLOW_ID);
+  const deliveryConfig = deliverySettings.enabled ? readJsonIfExists(path.join(targetRoot, deliveryConfigPath(config)), "delivery config") : null;
   const productSettings = workflowSettings(config, PRODUCT_SHAPING_WORKFLOW_ID);
-  return [config.artifactRoot, config.templateRoot, documentationRepairArtifactRoot(), workUnitConfig?.runArtifactsRoot, productSettings.enabled ? productShapingRunRoot(config) : null]
+  return [config.artifactRoot, config.templateRoot, documentationRepairArtifactRoot(), deliveryConfig?.runArtifactsRoot, productSettings.enabled ? productShapingRunRoot(config) : null]
     .filter(Boolean)
     .map((ignored) => `${ignored.replace(/\/$/, "")}/**`);
 }
@@ -472,8 +521,8 @@ function collectInstallManifestFiles(targetRoot, config) {
   addFileIfExists(targetRoot, files, path.join(targetRoot, config.processDocPath));
   addFileIfExists(targetRoot, files, path.join(targetRoot, productShapingConfigPath(config)));
   addFileIfExists(targetRoot, files, path.join(targetRoot, productShapingProfilePath(config)));
-  addFileIfExists(targetRoot, files, path.join(targetRoot, workUnitConfigPath(config)));
-  addFileIfExists(targetRoot, files, path.join(targetRoot, workUnitProfilePath(config)));
+  addFileIfExists(targetRoot, files, path.join(targetRoot, deliveryConfigPath(config)));
+  addFileIfExists(targetRoot, files, path.join(targetRoot, deliveryProfilePath(config)));
 
   const opencodeAgentRoot = path.join(targetRoot, ".opencode/agent");
   if (fs.existsSync(opencodeAgentRoot)) {
@@ -483,7 +532,7 @@ function collectInstallManifestFiles(targetRoot, config) {
       }
     }
   }
-  for (const skill of ["documentation-audit", "documentation-repair", "product-shaping", "work-unit-implementation"]) {
+  for (const skill of ["documentation-audit", "documentation-repair", "delivery-implementation", "product-shaping"]) {
     addDirectoryFilesIfExists(targetRoot, files, path.join(targetRoot, ".opencode/skills", skill));
   }
 
@@ -543,6 +592,10 @@ function writeJsonIfSafe(filePath, value, force) {
   writeTextIfSafe(filePath, `${JSON.stringify(value, null, 2)}\n`, force);
 }
 
+function writeJsonConfigIfSafe(filePath, value, force) {
+  writeJsonIfSafe(filePath, value, force);
+}
+
 function readConfig(targetRoot) {
   const configPath = path.join(targetRoot, CONFIG_FILE);
   if (!fs.existsSync(configPath)) {
@@ -589,13 +642,13 @@ function defaultWorkflowRegistry() {
     },
     "documentation-audit": { status: "available", enabled: true },
     "documentation-repair": { status: "available", enabled: true },
-    "technical-shaping": { status: "planned", enabled: false },
-    "work-unit-implementation": {
+    [DELIVERY_WORKFLOW_ID]: {
       status: "available",
       enabled: true,
-      configPath: ".wefter/workflows/work-unit-implementation/config.json",
-      profilePath: ".wefter/workflows/work-unit-implementation/profile.json"
-    }
+      configPath: ".wefter/workflows/delivery-implementation/config.json",
+      profilePath: ".wefter/workflows/delivery-implementation/profile.json"
+    },
+    "technical-shaping": { status: "planned", enabled: false },
   };
 }
 
@@ -615,14 +668,24 @@ function assertWorkflowEnabled(config, workflowId) {
   return settings;
 }
 
-function workUnitConfigPath(config, flags = {}) {
-  const settings = workflowSettings(config, WORK_UNIT_WORKFLOW_ID);
-  return normalizeRelativePath(flags["config-path"] || settings.configPath || `${config.workflowRoot}/${WORK_UNIT_WORKFLOW_ID}/config.json`, "work-unit config path");
+function deliveryRuntimeSettings(config) {
+  return config.workflows?.[DELIVERY_WORKFLOW_ID];
 }
 
-function workUnitProfilePath(config, flags = {}) {
-  const settings = workflowSettings(config, WORK_UNIT_WORKFLOW_ID);
-  return normalizeRelativePath(flags["profile-path"] || settings.profilePath || `${config.workflowRoot}/${WORK_UNIT_WORKFLOW_ID}/profile.json`, "work-unit profile path");
+function deliveryConfigPath(config, flags = {}) {
+  const settings = deliveryRuntimeSettings(config);
+  if (!settings) {
+    throw new Error(`Missing workflow settings for ${DELIVERY_WORKFLOW_ID}.`);
+  }
+  return normalizeRelativePath(flags["config-path"] || settings.configPath || `${config.workflowRoot}/${DELIVERY_WORKFLOW_ID}/config.json`, "delivery config path");
+}
+
+function deliveryProfilePath(config, flags = {}) {
+  const settings = deliveryRuntimeSettings(config);
+  if (!settings) {
+    throw new Error(`Missing workflow settings for ${DELIVERY_WORKFLOW_ID}.`);
+  }
+  return normalizeRelativePath(flags["profile-path"] || settings.profilePath || `${config.workflowRoot}/${DELIVERY_WORKFLOW_ID}/profile.json`, "delivery profile path");
 }
 
 function productShapingSpecRoot(config, flags = {}) {
@@ -701,6 +764,9 @@ function mergeOpencodeConfig(targetRoot, config, force) {
   const opencodePath = path.join(targetRoot, "opencode.json");
   const existing = fs.existsSync(opencodePath) ? readJson(opencodePath, "opencode.json") : { "$schema": "https://opencode.ai/config.json" };
   const productSettings = workflowSettings(config, PRODUCT_SHAPING_WORKFLOW_ID);
+  const deliverySettings = workflowSettings(config, DELIVERY_WORKFLOW_ID);
+  const deliveryConfig = deliverySettings.enabled ? readJsonIfExists(path.join(targetRoot, deliveryConfigPath(config)), "delivery config") : null;
+  const deliveryArtifactRoot = deliveryConfig?.runArtifactsRoot || ".audit/wefter/delivery-implementation";
 
   existing["$schema"] = existing["$schema"] || "https://opencode.ai/config.json";
   existing.watcher = existing.watcher || {};
@@ -728,10 +794,10 @@ function mergeOpencodeConfig(targetRoot, config, force) {
     agent: "wefter-doc-audit-profile-builder",
     template: `Inspect this repository and create or update the documentation audit profile defined by ${CONFIG_FILE}. If the profile already exists, write a proposal under the configured artifact root instead of overwriting it unless the user explicitly asked to replace it.`
   };
-  const workUnitCommand = {
-    description: "Run the Wefter work-unit implementation workflow: plan, review, gate, implement tasks, review tasks, and validate.",
-    agent: "wefter-work-unit-orchestrator",
-    template: `Run or resume the Wefter work-unit implementation workflow. Read ${CONFIG_FILE} first. If the user provided an existing .audit/wefter/work-unit-implementation/<run-id> path, resume it. Otherwise create a run with ${config.runnerCommand} work-unit run. Use the work unit id supplied by the user, or ask if unclear. Generate the work-unit plan, run adversarial plan reviews, consolidate, validate, repair candidate artifacts, apply the configured gate policy, and only execute code tasks after approval.`
+  const deliveryCommand = {
+    description: "Run the Wefter delivery implementation workflow.",
+    agent: "wefter-delivery-orchestrator",
+    template: `Run or resume the Wefter delivery implementation workflow. Read ${CONFIG_FILE} first. If the user provided an existing ${deliveryArtifactRoot}/<run-id> path, resume it. Otherwise create a run with ${config.runnerCommand} delivery run. Use the deliverable id supplied by the user, or ask if unclear. Prefer a validated product-shaped DELIVERABLES.md handoff when available. Generate the delivery plan, run adversarial plan reviews, consolidate, validate, repair candidate artifacts, apply the configured gate policy, and only execute code tasks after approval.`
   };
   const productShapeCommand = {
     description: "Run the Wefter product-shaping workflow from idea to validated product specs and DELIVERABLES.md handoff.",
@@ -747,9 +813,13 @@ function mergeOpencodeConfig(targetRoot, config, force) {
   const commands = {
     "wefter-audit-docs": fullRunCommand,
     "wefter-generate-doc-audit-profile": generateProfileCommand,
-    "wefter-repair-docs": repairDocsCommand,
-    "wefter-run-work-unit": workUnitCommand
+    "wefter-repair-docs": repairDocsCommand
   };
+  if (deliverySettings.enabled) {
+    commands["wefter-run-delivery"] = deliveryCommand;
+  } else {
+    delete existing.command["wefter-run-delivery"];
+  }
   if (productSettings.enabled) {
     commands["wefter-shape-product"] = productShapeCommand;
   } else {
@@ -876,42 +946,41 @@ function documentationAuditAuditorPrompt(targetRoot, config, profile) {
   return { relativePath, fullPath };
 }
 
-function validateWorkUnitConfig(config) {
-  assertObject(config, "Work-unit config");
-  assertAllowedKeys(config, "Work-unit config", ["version", "workflowName", "releaseId", "workUnitsDocument", "sourceDocs", "runArtifactsRoot", "versionedArtifacts", "defaultWorkUnitId", "defaultPlanAuditPassesPerLens", "gatePolicy"]);
+function validateDeliveryConfig(config) {
+  assertObject(config, "Delivery config");
+  assertAllowedKeys(config, "Delivery config", ["version", "workflowName", "releaseId", "deliverablesDocument", "sourceDocs", "runArtifactsRoot", "versionedArtifacts", "defaultDeliveryUnitId", "defaultPlanAuditPassesPerLens", "gatePolicy"]);
 
   if (config.version !== 1) {
-    throw new Error("Work-unit config must have version: 1.");
+    throw new Error("Delivery config must have version: 1.");
   }
-  requireString(config.workflowName, "Work-unit config.workflowName");
-  if (config.workflowName !== WORK_UNIT_WORKFLOW_ID) {
-    throw new Error(`Work-unit config.workflowName must be ${WORK_UNIT_WORKFLOW_ID}.`);
+  requireString(config.workflowName, "Delivery config.workflowName");
+  if (config.workflowName !== DELIVERY_WORKFLOW_ID) {
+    throw new Error(`Delivery config.workflowName must be ${DELIVERY_WORKFLOW_ID}.`);
   }
-  requireString(config.releaseId, "Work-unit config.releaseId");
-  normalizeRelativePath(config.workUnitsDocument, "Work-unit config.workUnitsDocument");
-  normalizeRelativePath(config.runArtifactsRoot, "Work-unit config.runArtifactsRoot");
-  requireString(config.defaultWorkUnitId, "Work-unit config.defaultWorkUnitId");
+  requireString(config.releaseId, "Delivery config.releaseId");
+  normalizeRelativePath(config.deliverablesDocument, "Delivery config.deliverablesDocument");
+  normalizeRelativePath(config.runArtifactsRoot, "Delivery config.runArtifactsRoot");
+  requireString(config.defaultDeliveryUnitId, "Delivery config.defaultDeliveryUnitId");
 
-  const passes = Number.parseInt(String(config.defaultPlanAuditPassesPerLens), 10);
-  if (!Number.isInteger(passes) || passes < 1) {
-    throw new Error("Work-unit config.defaultPlanAuditPassesPerLens must be an integer greater than 0.");
-  }
+  requireStrictInteger(config.defaultPlanAuditPassesPerLens, "Delivery config.defaultPlanAuditPassesPerLens", 1);
 
-  assertObject(config.sourceDocs, "Work-unit config.sourceDocs");
-  assertAllowedKeys(config.sourceDocs, "Work-unit config.sourceDocs", ["include", "exclude"]);
-  requireStringArray(config.sourceDocs.include, "Work-unit config.sourceDocs.include");
-  requireStringArray(config.sourceDocs.exclude, "Work-unit config.sourceDocs.exclude");
+  assertObject(config.sourceDocs, "Delivery config.sourceDocs");
+  assertAllowedKeys(config.sourceDocs, "Delivery config.sourceDocs", ["include", "exclude"]);
+  requireStringArray(config.sourceDocs.include, "Delivery config.sourceDocs.include");
+  requireStringArray(config.sourceDocs.exclude, "Delivery config.sourceDocs.exclude");
+  config.sourceDocs.include.forEach((item, index) => normalizeRelativeGlob(item, `Delivery config.sourceDocs.include[${index}]`));
+  config.sourceDocs.exclude.forEach((item, index) => normalizeRelativeGlob(item, `Delivery config.sourceDocs.exclude[${index}]`));
 
-  assertObject(config.versionedArtifacts, "Work-unit config.versionedArtifacts");
-  assertAllowedKeys(config.versionedArtifacts, "Work-unit config.versionedArtifacts", ["executionRoot", "decisionLogRoot"]);
-  normalizeRelativePath(config.versionedArtifacts.executionRoot, "Work-unit config.versionedArtifacts.executionRoot");
-  normalizeRelativePath(config.versionedArtifacts.decisionLogRoot, "Work-unit config.versionedArtifacts.decisionLogRoot");
+  assertObject(config.versionedArtifacts, "Delivery config.versionedArtifacts");
+  assertAllowedKeys(config.versionedArtifacts, "Delivery config.versionedArtifacts", ["executionRoot", "decisionLogRoot"]);
+  normalizeRelativePath(config.versionedArtifacts.executionRoot, "Delivery config.versionedArtifacts.executionRoot");
+  normalizeRelativePath(config.versionedArtifacts.decisionLogRoot, "Delivery config.versionedArtifacts.decisionLogRoot");
 
-  assertObject(config.gatePolicy, "Work-unit config.gatePolicy");
-  assertAllowedKeys(config.gatePolicy, "Work-unit config.gatePolicy", ["mode", "structuralWorkUnits", "alwaysPauseOn"]);
-  requireString(config.gatePolicy.mode, "Work-unit config.gatePolicy.mode");
-  requireStringArray(config.gatePolicy.structuralWorkUnits, "Work-unit config.gatePolicy.structuralWorkUnits");
-  requireStringArray(config.gatePolicy.alwaysPauseOn, "Work-unit config.gatePolicy.alwaysPauseOn");
+  assertObject(config.gatePolicy, "Delivery config.gatePolicy");
+  assertAllowedKeys(config.gatePolicy, "Delivery config.gatePolicy", ["mode", "structuralDeliveryUnits", "alwaysPauseOn"]);
+  requireString(config.gatePolicy.mode, "Delivery config.gatePolicy.mode");
+  requireStringArray(config.gatePolicy.structuralDeliveryUnits, "Delivery config.gatePolicy.structuralDeliveryUnits");
+  requireStringArray(config.gatePolicy.alwaysPauseOn, "Delivery config.gatePolicy.alwaysPauseOn");
 }
 
 function validateProductShapingConfig(config) {
@@ -988,37 +1057,37 @@ function validateProductShapingProfile(profile) {
   assertUniqueIds(profile.lenses, "Product-shaping profile lenses");
 }
 
-function validateWorkUnitProfile(profile) {
-  assertObject(profile, "Work-unit profile");
-  assertAllowedKeys(profile, "Work-unit profile", ["version", "variants", "lenses"]);
+function validateDeliveryProfile(profile) {
+  assertObject(profile, "Delivery profile");
+  assertAllowedKeys(profile, "Delivery profile", ["version", "variants", "lenses"]);
 
   if (profile.version !== 1) {
-    throw new Error("Work-unit profile must have version: 1.");
+    throw new Error("Delivery profile must have version: 1.");
   }
 
   if (!Array.isArray(profile.variants) || profile.variants.length === 0) {
-    throw new Error("Work-unit profile must define at least one variant.");
+    throw new Error("Delivery profile must define at least one variant.");
   }
   profile.variants.forEach((variant, index) => {
-    assertObject(variant, `Work-unit profile variants[${index}]`);
-    assertAllowedKeys(variant, `Work-unit profile variants[${index}]`, ["id", "title", "instruction"]);
-    requireId(variant.id, `Work-unit profile variants[${index}].id`);
-    requireString(variant.title, `Work-unit profile variants[${index}].title`);
-    requireString(variant.instruction, `Work-unit profile variants[${index}].instruction`);
+    assertObject(variant, `Delivery profile variants[${index}]`);
+    assertAllowedKeys(variant, `Delivery profile variants[${index}]`, ["id", "title", "instruction"]);
+    requireId(variant.id, `Delivery profile variants[${index}].id`);
+    requireString(variant.title, `Delivery profile variants[${index}].title`);
+    requireString(variant.instruction, `Delivery profile variants[${index}].instruction`);
   });
-  assertUniqueIds(profile.variants, "Work-unit profile variants");
+  assertUniqueIds(profile.variants, "Delivery profile variants");
 
   if (!Array.isArray(profile.lenses) || profile.lenses.length === 0) {
-    throw new Error("Work-unit profile must define at least one lens.");
+    throw new Error("Delivery profile must define at least one lens.");
   }
   profile.lenses.forEach((lens, index) => {
-    assertObject(lens, `Work-unit profile lenses[${index}]`);
-    assertAllowedKeys(lens, `Work-unit profile lenses[${index}]`, ["id", "title", "focus"]);
-    requireId(lens.id, `Work-unit profile lenses[${index}].id`);
-    requireString(lens.title, `Work-unit profile lenses[${index}].title`);
-    requireString(lens.focus, `Work-unit profile lenses[${index}].focus`);
+    assertObject(lens, `Delivery profile lenses[${index}]`);
+    assertAllowedKeys(lens, `Delivery profile lenses[${index}]`, ["id", "title", "focus"]);
+    requireId(lens.id, `Delivery profile lenses[${index}].id`);
+    requireString(lens.title, `Delivery profile lenses[${index}].title`);
+    requireString(lens.focus, `Delivery profile lenses[${index}].focus`);
   });
-  assertUniqueIds(profile.lenses, "Work-unit profile lenses");
+  assertUniqueIds(profile.lenses, "Delivery profile lenses");
 }
 
 function markdownList(items) {
@@ -1059,12 +1128,14 @@ async function commandInit(flags) {
   fs.mkdirSync(targetRoot, { recursive: true });
   ensureInside(path.dirname(targetRoot), targetRoot, "target");
 
-  let profilePath = flags["profile-path"] || DEFAULTS.profilePath;
-  let artifactRoot = flags["artifact-root"] || DEFAULTS.artifactRoot;
-  const workflowRoot = DEFAULTS.workflowRoot;
-  const templateRoot = flags["template-root"] || DEFAULTS.templateRoot;
-  const processDocPath = flags["process-doc-path"] || DEFAULTS.processDocPath;
-  const runnerCommand = flags["runner-command"] || defaultRunnerCommand();
+  const existingConfigPath = path.join(targetRoot, CONFIG_FILE);
+  const existingConfig = fs.existsSync(existingConfigPath) ? readJson(existingConfigPath, CONFIG_FILE) : null;
+  let profilePath = flags["profile-path"] || existingConfig?.profilePath || DEFAULTS.profilePath;
+  let artifactRoot = flags["artifact-root"] || existingConfig?.artifactRoot || DEFAULTS.artifactRoot;
+  const workflowRoot = existingConfig?.workflowRoot || DEFAULTS.workflowRoot;
+  const templateRoot = flags["template-root"] || existingConfig?.templateRoot || DEFAULTS.templateRoot;
+  const processDocPath = flags["process-doc-path"] || existingConfig?.processDocPath || DEFAULTS.processDocPath;
+  const runnerCommand = flags["runner-command"] || existingConfig?.runnerCommand || defaultRunnerCommand();
 
   if (!flags.yes && process.stdin.isTTY) {
     const rl = readline.createInterface({ input, output });
@@ -1072,6 +1143,11 @@ async function commandInit(flags) {
     artifactRoot = await promptForValue(rl, "Audit artifact root", artifactRoot);
     rl.close();
   }
+
+  const workflows = {
+    ...defaultWorkflowRegistry(),
+    ...(existingConfig?.workflows || {})
+  };
 
   const config = normalizeConfig({
     version: 1,
@@ -1081,8 +1157,33 @@ async function commandInit(flags) {
     templateRoot,
     processDocPath,
     runnerCommand,
-    workflows: defaultWorkflowRegistry()
+    workflows
   });
+
+  const root = packageRoot();
+  const auditTemplates = documentationAuditTemplateRoot();
+  const productShapingPackageRoot = productShapingWorkflowPackageRoot();
+  const deliveryPackageRoot = deliveryWorkflowPackageRoot();
+  const defaultDeliveryConfig = readJson(path.join(deliveryPackageRoot, "templates/default-config.json"), "default delivery config");
+  const configuredProductSpecRoot = productShapingSpecRoot(config);
+  defaultDeliveryConfig.deliverablesDocument = productSpecPath(configuredProductSpecRoot, defaultDeliveryConfig.releaseId, "releases/<release-id>/DELIVERABLES.md");
+  defaultDeliveryConfig.sourceDocs.include = unique([
+    ...defaultDeliveryConfig.sourceDocs.include.filter((item) => item !== ".wefter/specs/**/*.md"),
+    `${configuredProductSpecRoot}/**/*.md`
+  ]);
+  const deliveryEnabled = workflowSettings(config, DELIVERY_WORKFLOW_ID).enabled;
+  const deliveryConfigForInstall = deliveryEnabled
+    ? (flags.force ? defaultDeliveryConfig : (readJsonIfExists(path.join(targetRoot, deliveryConfigPath(config)), "delivery config") || defaultDeliveryConfig))
+    : defaultDeliveryConfig;
+  if (deliveryEnabled) {
+    validateDeliveryConfig(deliveryConfigForInstall);
+  }
+  const deliveryProfileForInstall = deliveryEnabled
+    ? readJson(path.join(deliveryPackageRoot, "templates/default-profile.json"), "default delivery profile")
+    : null;
+  if (deliveryEnabled) {
+    validateDeliveryProfile(deliveryProfileForInstall);
+  }
 
   const values = {
     PROFILE_PATH: config.profilePath,
@@ -1105,11 +1206,11 @@ async function commandInit(flags) {
     PRODUCT_SHAPING_CONFIG_PATH: productShapingConfigPath(config),
     PRODUCT_SHAPING_PROFILE_PATH: productShapingProfilePath(config),
     PRODUCT_SHAPING_PROCESS_DOC_PATH: `${config.workflowRoot}/${PRODUCT_SHAPING_WORKFLOW_ID}/README.md`,
-    RUNNER_COMMAND_WORK_UNIT_PATTERN: yamlSingleQuoted(`${config.runnerCommand} work-unit*`),
-    WORK_UNIT_ARTIFACT_ROOT: ".audit/wefter/work-unit-implementation",
-    WORK_UNIT_ARTIFACT_ROOT_WINDOWS: windowsPermissionPath(".audit/wefter/work-unit-implementation"),
-    WORK_UNIT_CONFIG_PATH: ".wefter/workflows/work-unit-implementation/config.json",
-    WORK_UNIT_PROFILE_PATH: ".wefter/workflows/work-unit-implementation/profile.json"
+    RUNNER_COMMAND_DELIVERY_PATTERN: yamlSingleQuoted(`${config.runnerCommand} delivery*`),
+    DELIVERY_ARTIFACT_ROOT: deliveryConfigForInstall.runArtifactsRoot,
+    DELIVERY_ARTIFACT_ROOT_WINDOWS: windowsPermissionPath(deliveryConfigForInstall.runArtifactsRoot),
+    DELIVERY_CONFIG_PATH: deliveryConfigPath(config),
+    DELIVERY_PROFILE_PATH: deliveryProfilePath(config)
   };
 
   writeJsonIfSafe(path.join(targetRoot, CONFIG_FILE), {
@@ -1117,27 +1218,24 @@ async function commandInit(flags) {
     ...config
   }, flags.force);
 
-  const root = packageRoot();
-  const auditTemplates = documentationAuditTemplateRoot();
-  const productShapingPackageRoot = productShapingWorkflowPackageRoot();
-  const workUnitPackageRoot = workUnitWorkflowPackageRoot();
   copyRenderedTemplate(path.join(root, "src/workflows/documentation-audit/workflow.json"), path.join(targetRoot, config.workflowRoot, "documentation-audit/workflow.json"), values, flags.force);
-  for (const workflowId of ["product-shaping", "documentation-repair", "technical-shaping", "work-unit-implementation"]) {
+  for (const workflowId of ["product-shaping", "documentation-repair", DELIVERY_WORKFLOW_ID, "technical-shaping"]) {
     copyDirectory(path.join(root, "src/workflows", workflowId), path.join(targetRoot, config.workflowRoot, workflowId), flags.force);
   }
-  copyDirectory(path.join(workUnitPackageRoot, "templates/prompts"), path.join(targetRoot, config.workflowRoot, WORK_UNIT_WORKFLOW_ID, "templates/prompts"), flags.force);
   const productShapingConfig = readJson(path.join(productShapingPackageRoot, "templates/default-config.json"), "default product-shaping config");
   productShapingConfig.specRoot = productShapingSpecRoot(config);
   productShapingConfig.runRoot = productShapingRunRoot(config);
   productShapingConfig.contractPath = `${config.workflowRoot}/${PRODUCT_SHAPING_WORKFLOW_ID}/contracts/product-spec-contract.json`;
   productShapingConfig.processDocPath = `${config.workflowRoot}/${PRODUCT_SHAPING_WORKFLOW_ID}/README.md`;
   validateProductShapingConfig(productShapingConfig);
-  writeJsonIfSafe(path.join(targetRoot, productShapingConfigPath(config)), productShapingConfig, flags.force);
+  writeJsonConfigIfSafe(path.join(targetRoot, productShapingConfigPath(config)), productShapingConfig, flags.force);
   const productShapingProfile = readJson(path.join(productShapingPackageRoot, "templates/default-profile.json"), "default product-shaping profile");
   validateProductShapingProfile(productShapingProfile);
-  writeJsonIfSafe(path.join(targetRoot, productShapingProfilePath(config)), productShapingProfile, flags.force);
-  writeJsonIfSafe(path.join(targetRoot, workUnitConfigPath(config)), readJson(path.join(workUnitPackageRoot, "templates/default-config.json"), "default work-unit config"), flags.force);
-  writeJsonIfSafe(path.join(targetRoot, workUnitProfilePath(config)), readJson(path.join(workUnitPackageRoot, "templates/default-profile.json"), "default work-unit profile"), flags.force);
+  writeJsonConfigIfSafe(path.join(targetRoot, productShapingProfilePath(config)), productShapingProfile, flags.force);
+  if (deliveryEnabled) {
+    writeJsonConfigIfSafe(path.join(targetRoot, deliveryConfigPath(config)), deliveryConfigForInstall, flags.force);
+    writeJsonConfigIfSafe(path.join(targetRoot, deliveryProfilePath(config)), deliveryProfileForInstall, flags.force);
+  }
   copyRenderedTemplate(path.join(auditTemplates, "opencode/agent/wefter-doc-audit-orchestrator.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-orchestrator.md"), values, flags.force);
   copyRenderedTemplate(path.join(auditTemplates, "opencode/agent/wefter-doc-auditor.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-auditor.md"), values, flags.force);
   copyRenderedTemplate(path.join(auditTemplates, "opencode/agent/wefter-doc-audit-consolidator.md.tmpl"), path.join(targetRoot, ".opencode/agent/wefter-doc-audit-consolidator.md"), values, flags.force);
@@ -1153,10 +1251,14 @@ async function commandInit(flags) {
     copyRenderedTemplate(path.join(productShapingPackageRoot, "templates/opencode/agent", `wefter-product-${agent}.md.tmpl`), path.join(targetRoot, ".opencode/agent", `wefter-product-${agent}.md`), values, flags.force);
   }
   copyRenderedTemplate(path.join(productShapingPackageRoot, "templates/opencode/skills/product-shaping/SKILL.md.tmpl"), path.join(targetRoot, ".opencode/skills/product-shaping/SKILL.md"), values, flags.force);
-  for (const agent of ["orchestrator", "planner", "plan-auditor", "plan-consolidator", "plan-validator", "plan-repairer", "task-implementer", "task-reviewer", "validator"]) {
-    copyRenderedTemplate(path.join(workUnitPackageRoot, "templates/opencode/agent", `wefter-work-unit-${agent}.md.tmpl`), path.join(targetRoot, ".opencode/agent", `wefter-work-unit-${agent}.md`), values, flags.force);
+  if (deliveryEnabled) {
+    for (const agent of ["orchestrator", "planner", "plan-auditor", "plan-consolidator", "plan-validator", "plan-repairer", "task-implementer", "task-reviewer", "validator"]) {
+      copyRenderedTemplate(path.join(deliveryPackageRoot, "templates/opencode/agent", `wefter-delivery-${agent}.md.tmpl`), path.join(targetRoot, ".opencode/agent", `wefter-delivery-${agent}.md`), values, flags.force);
+    }
+    copyRenderedTemplate(path.join(deliveryPackageRoot, "templates/opencode/skills/delivery-implementation/SKILL.md.tmpl"), path.join(targetRoot, ".opencode/skills/delivery-implementation/SKILL.md"), values, flags.force);
+  } else {
+    removeDeliveryOpenCodeArtifacts(targetRoot);
   }
-  copyRenderedTemplate(path.join(workUnitPackageRoot, "templates/opencode/skills/work-unit-implementation/SKILL.md.tmpl"), path.join(targetRoot, ".opencode/skills/work-unit-implementation/SKILL.md"), values, flags.force);
   copyDirectory(path.join(auditTemplates, "prompts"), path.join(targetRoot, config.templateRoot), flags.force);
   copyRenderedTemplate(path.join(auditTemplates, "README.md.tmpl"), path.join(targetRoot, config.processDocPath), values, flags.force);
   mergeOpencodeConfig(targetRoot, config, flags.force);
@@ -1172,7 +1274,11 @@ async function commandInit(flags) {
   console.log(`Artifacts: ${config.artifactRoot}`);
   console.log(`Runner command: ${config.runnerCommand}`);
   console.log(`Tip: add ${config.artifactRoot}/ to .gitignore if you do not want to track generated audit runs.`);
-  console.log("Restart opencode before using /wefter-shape-product, /wefter-audit-docs, /wefter-generate-doc-audit-profile, /wefter-repair-docs, or /wefter-run-work-unit.");
+  const restartCommands = ["/wefter-shape-product", "/wefter-audit-docs", "/wefter-generate-doc-audit-profile", "/wefter-repair-docs"];
+  if (deliveryEnabled) {
+    restartCommands.push("/wefter-run-delivery");
+  }
+  console.log(`Restart opencode before using ${restartCommands.join(", ").replace(/, ([^,]*)$/, " or $1")}.`);
 }
 
 function readInstallManifest(targetRoot) {
@@ -1633,18 +1739,59 @@ function deliverableSections(deliverables) {
   });
 }
 
-function isProductDeliverablesHandoff(value) {
-  return /(?:^|\/)releases\/[^/]+\/DELIVERABLES\.md$/i.test(value) || /(?:^|\/)DELIVERABLES\.md$/i.test(value);
+function parseProductDeliverablesHandoff(value) {
+  const normalized = normalizeRelativePath(value, "deliverables document");
+  const match = normalized.match(/^(.*)\/releases\/([^/]+)\/DELIVERABLES\.md$/i);
+  if (!match) {
+    return null;
+  }
+  return {
+    deliverablesDocument: normalized,
+    specRoot: normalizeRelativePath(match[1], "product-shaping handoff spec root"),
+    releaseId: match[2]
+  };
 }
 
-function assertConfiguredProductHandoff(workUnitsDocument, expectedHandoff) {
-  if (workUnitsDocument === expectedHandoff) {
+function alignDeliverySourceDocsWithHandoff(deliveryConfig) {
+  const handoff = parseProductDeliverablesHandoff(deliveryConfig.deliverablesDocument);
+  if (!handoff) {
+    return;
+  }
+  const handoffGlob = `${handoff.specRoot}/**/*.md`;
+  deliveryConfig.sourceDocs.include = unique([
+    ...deliveryConfig.sourceDocs.include.filter((item) => item !== ".wefter/specs/**/*.md" || handoff.specRoot === ".wefter/specs"),
+    handoffGlob
+  ]);
+}
+
+function numericId(value) {
+  const text = String(value).trim();
+  if (!/^\d+$/.test(text)) {
+    return null;
+  }
+  return String(Number.parseInt(text, 10));
+}
+
+function deliveryUnitMatchesDeliverable(sectionId, deliveryUnitId, deliveryUnitKey) {
+  const normalizedSectionId = sectionId.toLowerCase();
+  const raw = String(deliveryUnitId).trim().toLowerCase();
+  const keySuffix = deliveryUnitKey.replace(/^delivery-unit-/, "");
+  const sectionNumber = numericId(normalizedSectionId);
+  if (sectionNumber !== null && (sectionNumber === numericId(raw) || sectionNumber === numericId(keySuffix))) {
     return true;
   }
-  if (isProductDeliverablesHandoff(workUnitsDocument)) {
-    throw new Error(`Product-shaping handoff must use the configured DELIVERABLES.md path '${expectedHandoff}', but got '${workUnitsDocument}'.`);
+  return normalizedSectionId === raw || normalizedSectionId === deliveryUnitKey || normalizedSectionId === keySuffix;
+}
+
+function assertDeliverableExists(targetRoot, deliveryConfig, deliveryUnitId, deliveryUnitKey) {
+  const deliverablesPath = resolveInsideTarget(targetRoot, deliveryConfig.deliverablesDocument, "deliverables document");
+  if (!fs.existsSync(deliverablesPath)) {
+    throw new Error(`Deliverables document not found: ${toDisplayPath(targetRoot, deliverablesPath)}.`);
   }
-  return false;
+  const sections = deliverableSections(fs.readFileSync(deliverablesPath, "utf8"));
+  if (!sections.some((section) => deliveryUnitMatchesDeliverable(section.id, deliveryUnitId, deliveryUnitKey))) {
+    throw new Error(`Deliverable '${deliveryUnitId}' (${deliveryUnitKey}) is not present in ${deliveryConfig.deliverablesDocument}.`);
+  }
 }
 
 function validateDeliverableFieldCoverage(deliverables, readyStatuses, errors) {
@@ -1827,6 +1974,15 @@ function validateProductSpecs(targetRoot, productConfig, releaseId, flags = {}) 
         }
         if (manifest.releaseId !== releaseId) {
           errors.push(`Run manifest releaseId '${manifest.releaseId}' does not match requested release '${releaseId}'.`);
+        }
+        const manifestSpecRoot = manifest.paths?.specRoot || manifest.specRoot;
+        if (manifestSpecRoot) {
+          const normalizedManifestSpecRoot = normalizeRelativePath(manifestSpecRoot, "product-shaping manifest specRoot");
+          if (normalizedManifestSpecRoot !== specRootRelative) {
+            errors.push(`Run manifest specRoot '${normalizedManifestSpecRoot}' does not match requested spec root '${specRootRelative}'.`);
+          }
+        } else {
+          errors.push("Run manifest is missing specRoot.");
         }
         if (manifest.paths?.runRoot) {
           const manifestRunRoot = resolveInsideTarget(targetRoot, manifest.paths.runRoot, "product-shaping manifest run root");
@@ -2041,7 +2197,7 @@ function commandProductShape(flags) {
   console.log(`Required product spec files: ${requiredFiles.length}`);
 }
 
-function productValidationFlagsFromWorkUnitFlags(flags) {
+function productValidationFlagsFromDeliveryFlags(flags) {
   const validationFlags = {};
   if (flags["product-run-id"] && flags["product-run-root"]) {
     throw new Error("Use either --product-run-id or --product-run-root, not both.");
@@ -2055,86 +2211,102 @@ function productValidationFlagsFromWorkUnitFlags(flags) {
   return validationFlags;
 }
 
-function enforceProductHandoffGate(targetRoot, wefterConfig, workUnitConfig, flags) {
-  if (!isProductDeliverablesHandoff(workUnitConfig.workUnitsDocument)) {
-    return;
+function rebaseReleasePath(value, previousReleaseId, nextReleaseId) {
+  const normalized = normalizeRelativePath(value, "release-scoped path");
+  const marker = `/releases/${previousReleaseId}/`;
+  if (normalized.includes(marker)) {
+    return normalized.replace(marker, `/releases/${nextReleaseId}/`);
   }
+  const prefix = `releases/${previousReleaseId}/`;
+  if (normalized.startsWith(prefix)) {
+    return `releases/${nextReleaseId}/${normalized.slice(prefix.length)}`;
+  }
+  return normalized;
+}
 
+function enforceProductHandoffGate(targetRoot, wefterConfig, deliveryConfig, flags) {
   const productConfigPath = productShapingConfigPath(wefterConfig);
   const productConfig = readJson(path.join(targetRoot, productConfigPath), "product-shaping config");
   validateProductShapingConfig(productConfig);
-  const expectedHandoff = productSpecPath(productConfig.specRoot, workUnitConfig.releaseId, "releases/<release-id>/DELIVERABLES.md");
-  if (!assertConfiguredProductHandoff(workUnitConfig.workUnitsDocument, expectedHandoff)) {
+  const handoff = parseProductDeliverablesHandoff(deliveryConfig.deliverablesDocument);
+  if (!handoff) {
     return;
+  }
+  if (handoff.releaseId !== deliveryConfig.releaseId) {
+    const expectedHandoff = productSpecPath(normalizeRelativePath(productConfig.specRoot, "Product-shaping config.specRoot"), deliveryConfig.releaseId, "releases/<release-id>/DELIVERABLES.md");
+    throw new Error(`Product-shaping handoff must use the configured DELIVERABLES.md path '${expectedHandoff}', but got '${handoff.deliverablesDocument}'.`);
   }
 
   if (!flags["product-run-id"] && !flags["product-run-root"]) {
-    throw new Error(`Using product-shaping DELIVERABLES.md as a work-unit handoff requires --product-run-id or --product-run-root so the product completion gate can be verified.`);
+    throw new Error(`Using product-shaping DELIVERABLES.md as a delivery handoff requires --product-run-id or --product-run-root so the product completion gate can be verified.`);
   }
 
-  const result = validateProductSpecs(targetRoot, productConfig, workUnitConfig.releaseId, productValidationFlagsFromWorkUnitFlags(flags));
+  const result = validateProductSpecs(targetRoot, { ...productConfig, specRoot: handoff.specRoot }, deliveryConfig.releaseId, productValidationFlagsFromDeliveryFlags(flags));
   if (result.errors.length > 0) {
     throw new Error(`Product-shaping handoff is not valid for delivery implementation:\n- ${result.errors.join("\n- ")}`);
   }
 }
 
-function commandWorkUnitRun(flags) {
+function commandDeliveryRun(flags) {
   const targetRoot = resolveTarget(flags);
   const wefterConfig = readConfig(targetRoot);
-  const configPath = workUnitConfigPath(wefterConfig, flags);
-  const profilePath = workUnitProfilePath(wefterConfig, flags);
-  const workUnitConfig = readJson(path.join(targetRoot, configPath), "work-unit config");
-  if (flags["work-units-document"]) {
-    workUnitConfig.workUnitsDocument = normalizeRelativePath(flags["work-units-document"], "work-units document override");
+  assertWorkflowEnabled(wefterConfig, DELIVERY_WORKFLOW_ID);
+  const configPath = deliveryConfigPath(wefterConfig, flags);
+  const profilePath = deliveryProfilePath(wefterConfig, flags);
+  const deliveryConfig = readJson(path.join(targetRoot, configPath), "delivery config");
+  if (flags["deliverables-document"]) {
+    deliveryConfig.deliverablesDocument = normalizeRelativePath(flags["deliverables-document"], "deliverables document override");
   }
   if (flags["release-id"]) {
-    workUnitConfig.releaseId = requireString(flags["release-id"], "release id override");
+    const previousReleaseId = deliveryConfig.releaseId;
+    const nextReleaseId = requireString(flags["release-id"], "release id override");
+    assertSafeRunName(nextReleaseId);
+    deliveryConfig.deliverablesDocument = rebaseReleasePath(deliveryConfig.deliverablesDocument, previousReleaseId, nextReleaseId);
+    deliveryConfig.versionedArtifacts.executionRoot = rebaseReleasePath(deliveryConfig.versionedArtifacts.executionRoot, previousReleaseId, nextReleaseId);
+    deliveryConfig.versionedArtifacts.decisionLogRoot = rebaseReleasePath(deliveryConfig.versionedArtifacts.decisionLogRoot, previousReleaseId, nextReleaseId);
+    deliveryConfig.releaseId = nextReleaseId;
   }
-  const profile = readJson(path.join(targetRoot, profilePath), "work-unit profile");
-  validateWorkUnitConfig(workUnitConfig);
-  validateWorkUnitProfile(profile);
-  enforceProductHandoffGate(targetRoot, wefterConfig, workUnitConfig, flags);
+  alignDeliverySourceDocsWithHandoff(deliveryConfig);
+  const profile = readJson(path.join(targetRoot, profilePath), "delivery profile");
+  validateDeliveryConfig(deliveryConfig);
+  validateDeliveryProfile(profile);
+  enforceProductHandoffGate(targetRoot, wefterConfig, deliveryConfig, flags);
 
-  const workUnitId = flags["work-unit-id"] || workUnitConfig.defaultWorkUnitId;
-  const workUnitKey = getSafeWorkUnitKey(workUnitId);
-  const passesPerLens = Number.parseInt(flags["passes-per-lens"] || String(workUnitConfig.defaultPlanAuditPassesPerLens), 10);
-  const maxAudits = Number.parseInt(flags["max-audits"] || "0", 10);
-  if (!Number.isInteger(passesPerLens) || passesPerLens < 1) {
-    throw new Error("--passes-per-lens must be an integer greater than 0.");
-  }
-  if (!Number.isInteger(maxAudits) || maxAudits < 0) {
-    throw new Error("--max-audits must be an integer greater than or equal to 0.");
-  }
+  const deliveryUnitId = flags["deliverable-id"] || deliveryConfig.defaultDeliveryUnitId;
+  const deliveryUnitKey = getSafeDeliveryUnitKey(deliveryUnitId);
+  assertDeliverableExists(targetRoot, deliveryConfig, deliveryUnitId, deliveryUnitKey);
+  const passesPerLens = flags["passes-per-lens"] ? parseStrictInteger(flags["passes-per-lens"], "--passes-per-lens", 1) : deliveryConfig.defaultPlanAuditPassesPerLens;
+  const maxAudits = flags["max-audits"] ? parseStrictInteger(flags["max-audits"], "--max-audits", 0) : 0;
 
-  const runName = flags["run-name"] || `${timestampRunName()}__${workUnitKey}`;
+  const runName = flags["run-name"] || `${timestampRunName()}__${deliveryUnitKey}`;
   assertSafeRunName(runName);
   const combinations = buildCombinations(profile, passesPerLens, maxAudits).map((combo, index) => ({
     ...combo,
     auditId: `P${String(index + 1).padStart(4, "0")}__${combo.lens.id}__${combo.variant.id}__p${String(combo.pass).padStart(2, "0")}`
   }));
 
-  const artifactRoot = path.join(targetRoot, workUnitConfig.runArtifactsRoot);
+  const artifactRoot = path.join(targetRoot, deliveryConfig.runArtifactsRoot);
   const tempRoot = path.join(artifactRoot, ".tmp");
   const runRoot = path.join(artifactRoot, runName);
   const stagingRunRoot = path.join(tempRoot, runName);
-  ensureInside(targetRoot, artifactRoot, "work-unit runArtifactsRoot");
-  ensureInside(targetRoot, runRoot, "work-unit runRoot");
-  ensureInside(targetRoot, stagingRunRoot, "work-unit stagingRunRoot");
+  ensureInside(targetRoot, artifactRoot, "delivery runArtifactsRoot");
+  ensureInside(targetRoot, runRoot, "delivery runRoot");
+  ensureInside(targetRoot, stagingRunRoot, "delivery stagingRunRoot");
 
-  const runRootRelative = toPosix(path.join(workUnitConfig.runArtifactsRoot, runName));
-  const versionedWorkUnitDir = toPosix(path.join(workUnitConfig.versionedArtifacts.executionRoot, workUnitKey));
-  const versionedTaskSpecsDir = toPosix(path.join(versionedWorkUnitDir, "task-specs"));
-  const versionedDecisionLog = toPosix(path.join(workUnitConfig.versionedArtifacts.decisionLogRoot, `${workUnitKey}-decisions.md`));
+  const runRootRelative = toPosix(path.join(deliveryConfig.runArtifactsRoot, runName));
+  const versionedDeliveryDir = toPosix(path.join(deliveryConfig.versionedArtifacts.executionRoot, deliveryUnitKey));
+  const versionedTaskSpecsDir = toPosix(path.join(versionedDeliveryDir, "task-specs"));
+  const versionedDecisionLog = toPosix(path.join(deliveryConfig.versionedArtifacts.decisionLogRoot, `${deliveryUnitKey}-decisions.md`));
 
   if (flags["dry-run"]) {
     console.log(`Run name: ${runName}`);
-    console.log(`Work unit: ${workUnitKey}`);
+    console.log(`Delivery unit: ${deliveryUnitKey}`);
     console.log(`Lenses: ${profile.lenses.length}`);
     console.log(`Variants: ${profile.variants.length}`);
     console.log(`Passes per lens/variant: ${passesPerLens}`);
     console.log(`Plan auditor prompts to generate: ${combinations.length}`);
     console.log(`Output root: ${runRoot}`);
-    console.log(`Versioned work-unit dir: ${versionedWorkUnitDir}`);
+    console.log(`Versioned delivery dir: ${versionedDeliveryDir}`);
     return;
   }
 
@@ -2146,25 +2318,25 @@ function commandWorkUnitRun(flags) {
   }
 
   const promptsRoot = path.join(stagingRunRoot, "prompts");
-  const planAuditorPromptsRoot = path.join(promptsRoot, "plan-auditors", workUnitKey);
+  const planAuditorPromptsRoot = path.join(promptsRoot, "plan-auditors", deliveryUnitKey);
   const planningRoot = path.join(stagingRunRoot, "planning");
   const draftRoot = path.join(planningRoot, "draft");
   const draftTaskSpecsRoot = path.join(draftRoot, "task-specs");
   const finalRoot = path.join(stagingRunRoot, "final");
   const candidateRoot = path.join(finalRoot, "approved-artifacts");
-  const candidateWorkUnitRoot = path.join(candidateRoot, workUnitKey);
-  const candidateTaskSpecsRoot = path.join(candidateWorkUnitRoot, "task-specs");
+  const candidateDeliveryRoot = path.join(candidateRoot, deliveryUnitKey);
+  const candidateTaskSpecsRoot = path.join(candidateDeliveryRoot, "task-specs");
   const rawPlanAuditsRoot = path.join(stagingRunRoot, "raw", "plan-audits");
   const consolidationRoot = path.join(stagingRunRoot, "consolidation");
   const validationRoot = path.join(stagingRunRoot, "validation");
   const implementationRoot = path.join(stagingRunRoot, "implementation");
   const taskLogRoot = path.join(implementationRoot, "task-logs");
   const taskReviewRoot = path.join(implementationRoot, "task-reviews");
-  for (const directory of [artifactRoot, tempRoot, stagingRunRoot, promptsRoot, planAuditorPromptsRoot, planningRoot, draftRoot, draftTaskSpecsRoot, finalRoot, candidateRoot, candidateWorkUnitRoot, candidateTaskSpecsRoot, rawPlanAuditsRoot, consolidationRoot, validationRoot, implementationRoot, taskLogRoot, taskReviewRoot]) {
+  for (const directory of [artifactRoot, tempRoot, stagingRunRoot, promptsRoot, planAuditorPromptsRoot, planningRoot, draftRoot, draftTaskSpecsRoot, finalRoot, candidateRoot, candidateDeliveryRoot, candidateTaskSpecsRoot, rawPlanAuditsRoot, consolidationRoot, validationRoot, implementationRoot, taskLogRoot, taskReviewRoot]) {
     fs.mkdirSync(directory, { recursive: true });
   }
 
-  const templateRoot = path.join(targetRoot, wefterConfig.workflowRoot, WORK_UNIT_WORKFLOW_ID, "templates", "prompts");
+  const templateRoot = path.join(targetRoot, wefterConfig.workflowRoot, DELIVERY_WORKFLOW_ID, "templates", "prompts");
   const templates = {
     planner: fs.readFileSync(path.join(templateRoot, "planner-prompt.md"), "utf8"),
     planAuditor: fs.readFileSync(path.join(templateRoot, "plan-auditor-prompt.md"), "utf8"),
@@ -2173,45 +2345,46 @@ function commandWorkUnitRun(flags) {
     repairer: fs.readFileSync(path.join(templateRoot, "plan-repairer-prompt.md"), "utf8"),
     taskImplementation: fs.readFileSync(path.join(templateRoot, "task-implementation-prompt.md"), "utf8"),
     taskReview: fs.readFileSync(path.join(templateRoot, "task-review-prompt.md"), "utf8"),
-    workUnitValidator: fs.readFileSync(path.join(templateRoot, "work-unit-validator-prompt.md"), "utf8")
+    deliveryValidator: fs.readFileSync(path.join(templateRoot, "delivery-validator-prompt.md"), "utf8")
   };
 
-  const draftPlan = toPosix(path.join(runRootRelative, "planning", "draft", "work-unit-plan.md"));
+  const draftPlan = toPosix(path.join(runRootRelative, "planning", "draft", "delivery-plan.md"));
   const draftTraceability = toPosix(path.join(runRootRelative, "planning", "draft", "traceability-matrix.md"));
   const draftVerification = toPosix(path.join(runRootRelative, "planning", "draft", "verification-plan.md"));
   const draftGate = toPosix(path.join(runRootRelative, "planning", "draft", "gate-assessment.md"));
   const draftDecisions = toPosix(path.join(runRootRelative, "planning", "draft", "decisions-draft.md"));
   const draftTaskSpecs = toPosix(path.join(runRootRelative, "planning", "draft", "task-specs"));
-  const candidatePlan = toPosix(path.join(runRootRelative, "final", "approved-artifacts", workUnitKey, "work-unit-plan.md"));
-  const candidateTraceability = toPosix(path.join(runRootRelative, "final", "approved-artifacts", workUnitKey, "traceability-matrix.md"));
-  const candidateVerification = toPosix(path.join(runRootRelative, "final", "approved-artifacts", workUnitKey, "verification-plan.md"));
-  const candidateGate = toPosix(path.join(runRootRelative, "final", "approved-artifacts", workUnitKey, "gate-assessment.md"));
-  const candidateDecisions = toPosix(path.join(runRootRelative, "final", "approved-artifacts", workUnitKey, `${workUnitKey}-decisions.md`));
-  const candidateTaskSpecs = toPosix(path.join(runRootRelative, "final", "approved-artifacts", workUnitKey, "task-specs"));
+  const candidatePlan = toPosix(path.join(runRootRelative, "final", "approved-artifacts", deliveryUnitKey, "delivery-plan.md"));
+  const candidateTraceability = toPosix(path.join(runRootRelative, "final", "approved-artifacts", deliveryUnitKey, "traceability-matrix.md"));
+  const candidateVerification = toPosix(path.join(runRootRelative, "final", "approved-artifacts", deliveryUnitKey, "verification-plan.md"));
+  const candidateGate = toPosix(path.join(runRootRelative, "final", "approved-artifacts", deliveryUnitKey, "gate-assessment.md"));
+  const candidateDecisions = toPosix(path.join(runRootRelative, "final", "approved-artifacts", deliveryUnitKey, `${deliveryUnitKey}-decisions.md`));
+  const candidateTaskSpecs = toPosix(path.join(runRootRelative, "final", "approved-artifacts", deliveryUnitKey, "task-specs"));
   const repairSummary = toPosix(path.join(runRootRelative, "final", "plan-repair-summary.md"));
   const rawPlanAudits = toPosix(path.join(runRootRelative, "raw", "plan-audits"));
   const consolidatedOutput = toPosix(path.join(runRootRelative, "consolidation", "consolidated-plan-candidates.md"));
   const discardedOutput = toPosix(path.join(runRootRelative, "consolidation", "discarded-plan-findings.md"));
   const validationOutput = toPosix(path.join(runRootRelative, "validation", "plan-adversarial-validation-log.md"));
   const finalPlanReview = toPosix(path.join(runRootRelative, "final", "final-plan-review-report.md"));
-  const workUnitValidation = toPosix(path.join(runRootRelative, "final", "work-unit-validation.md"));
+  const deliveryValidation = toPosix(path.join(runRootRelative, "final", "delivery-validation.md"));
   const taskLogDir = toPosix(path.join(runRootRelative, "implementation", "task-logs"));
   const taskReviewDir = toPosix(path.join(runRootRelative, "implementation", "task-reviews"));
-  const versionedWorkUnitPlan = toPosix(path.join(versionedWorkUnitDir, "work-unit-plan.md"));
-  const versionedTraceability = toPosix(path.join(versionedWorkUnitDir, "traceability-matrix.md"));
-  const versionedVerification = toPosix(path.join(versionedWorkUnitDir, "verification-plan.md"));
+  const versionedDeliveryPlan = toPosix(path.join(versionedDeliveryDir, "delivery-plan.md"));
+  const versionedTraceability = toPosix(path.join(versionedDeliveryDir, "traceability-matrix.md"));
+  const versionedVerification = toPosix(path.join(versionedDeliveryDir, "verification-plan.md"));
 
   const baseValues = {
     RUN_ID: runName,
-    WORK_UNIT_ID: workUnitId,
-    WORK_UNIT_KEY: workUnitKey,
-    RELEASE_ID: workUnitConfig.releaseId,
+    RUNNER_COMMAND: wefterConfig.runnerCommand,
+    DELIVERY_UNIT_ID: deliveryUnitId,
+    DELIVERY_UNIT_KEY: deliveryUnitKey,
+    RELEASE_ID: deliveryConfig.releaseId,
     CONFIG_PATH: configPath,
     PROFILE_PATH: profilePath,
     RUN_ROOT: runRootRelative,
-    WORK_UNITS_DOCUMENT: workUnitConfig.workUnitsDocument,
-    SOURCE_INCLUDE: markdownList(workUnitConfig.sourceDocs.include),
-    SOURCE_EXCLUDE: markdownList(workUnitConfig.sourceDocs.exclude),
+    DELIVERABLES_DOCUMENT: deliveryConfig.deliverablesDocument,
+    SOURCE_INCLUDE: markdownList(deliveryConfig.sourceDocs.include),
+    SOURCE_EXCLUDE: markdownList(deliveryConfig.sourceDocs.exclude),
     DRAFT_PLAN_OUTPUT: draftPlan,
     DRAFT_TRACEABILITY_OUTPUT: draftTraceability,
     DRAFT_VERIFICATION_OUTPUT: draftVerification,
@@ -2230,15 +2403,15 @@ function commandWorkUnitRun(flags) {
     DISCARDED_OUTPUT: discardedOutput,
     VALIDATION_OUTPUT: validationOutput,
     FINAL_PLAN_REVIEW_OUTPUT: finalPlanReview,
-    VERSIONED_WORK_UNIT_DIR: versionedWorkUnitDir,
+    VERSIONED_DELIVERY_DIR: versionedDeliveryDir,
     VERSIONED_TASK_SPECS_DIR: versionedTaskSpecsDir,
-    VERSIONED_WORK_UNIT_PLAN: versionedWorkUnitPlan,
+    VERSIONED_DELIVERY_PLAN: versionedDeliveryPlan,
     VERSIONED_TRACEABILITY_MATRIX: versionedTraceability,
     VERSIONED_VERIFICATION_PLAN: versionedVerification,
     VERSIONED_DECISION_LOG: versionedDecisionLog,
     TASK_LOG_DIR: taskLogDir,
     TASK_REVIEW_DIR: taskReviewDir,
-    WORK_UNIT_VALIDATION_OUTPUT: workUnitValidation
+    DELIVERY_VALIDATION_OUTPUT: deliveryValidation
   };
 
   fs.writeFileSync(path.join(promptsRoot, "plan.md"), renderTemplate(templates.planner, baseValues), "utf8");
@@ -2247,12 +2420,12 @@ function commandWorkUnitRun(flags) {
   fs.writeFileSync(path.join(promptsRoot, "repair-plan.md"), renderTemplate(templates.repairer, baseValues), "utf8");
   fs.writeFileSync(path.join(promptsRoot, "implement-tasks.md"), renderTemplate(templates.taskImplementation, baseValues), "utf8");
   fs.writeFileSync(path.join(promptsRoot, "review-task.md"), renderTemplate(templates.taskReview, baseValues), "utf8");
-  fs.writeFileSync(path.join(promptsRoot, "validate-work-unit.md"), renderTemplate(templates.workUnitValidator, baseValues), "utf8");
+  fs.writeFileSync(path.join(promptsRoot, "validate-delivery.md"), renderTemplate(templates.deliveryValidator, baseValues), "utf8");
 
   const promptRecords = [];
   for (const combo of combinations) {
     const outputRelative = toPosix(path.join(runRootRelative, "raw", "plan-audits", `${combo.auditId}.md`));
-    const promptRelative = toPosix(path.join(runRootRelative, "prompts", "plan-auditors", workUnitKey, `${combo.auditId}.md`));
+    const promptRelative = toPosix(path.join(runRootRelative, "prompts", "plan-auditors", deliveryUnitKey, `${combo.auditId}.md`));
     const prompt = renderTemplate(templates.planAuditor, {
       ...baseValues,
       AUDIT_ID: combo.auditId,
@@ -2278,18 +2451,18 @@ function commandWorkUnitRun(flags) {
 
   writeJson(path.join(stagingRunRoot, "manifest.json"), {
     version: 1,
-    workflowId: WORK_UNIT_WORKFLOW_ID,
+    workflowId: DELIVERY_WORKFLOW_ID,
     runId: runName,
-    workUnitId,
-    workUnitKey,
-    releaseId: workUnitConfig.releaseId,
+    deliveryUnitId,
+    deliveryUnitKey,
+    releaseId: deliveryConfig.releaseId,
     generatedAt: new Date().toISOString(),
     configPath,
     profilePath,
-    workUnitsDocument: workUnitConfig.workUnitsDocument,
+    deliverablesDocument: deliveryConfig.deliverablesDocument,
     passesPerLens,
     maxAudits,
-    gatePolicy: workUnitConfig.gatePolicy,
+    gatePolicy: deliveryConfig.gatePolicy,
     counts: {
       lenses: profile.lenses.length,
       variants: profile.variants.length,
@@ -2299,13 +2472,13 @@ function commandWorkUnitRun(flags) {
       runRoot: runRootRelative,
       prompts: toPosix(path.join(runRootRelative, "prompts")),
       planPrompt: toPosix(path.join(runRootRelative, "prompts", "plan.md")),
-      planAuditorPrompts: toPosix(path.join(runRootRelative, "prompts", "plan-auditors", workUnitKey)),
+      planAuditorPrompts: toPosix(path.join(runRootRelative, "prompts", "plan-auditors", deliveryUnitKey)),
       rawPlanAudits,
       consolidation: toPosix(path.join(runRootRelative, "consolidation")),
       validation: toPosix(path.join(runRootRelative, "validation")),
       final: toPosix(path.join(runRootRelative, "final")),
-      candidateArtifacts: toPosix(path.join(runRootRelative, "final", "approved-artifacts", workUnitKey)),
-      versionedWorkUnitDir,
+      candidateArtifacts: toPosix(path.join(runRootRelative, "final", "approved-artifacts", deliveryUnitKey)),
+      versionedDeliveryDir,
       versionedDecisionLog
     },
     prompts: {
@@ -2316,21 +2489,25 @@ function commandWorkUnitRun(flags) {
       repairPlan: toPosix(path.join(runRootRelative, "prompts", "repair-plan.md")),
       implementTasks: toPosix(path.join(runRootRelative, "prompts", "implement-tasks.md")),
       reviewTask: toPosix(path.join(runRootRelative, "prompts", "review-task.md")),
-      validateWorkUnit: toPosix(path.join(runRootRelative, "prompts", "validate-work-unit.md"))
+      validateDelivery: toPosix(path.join(runRootRelative, "prompts", "validate-delivery.md"))
     }
   });
 
-  fs.writeFileSync(path.join(stagingRunRoot, "README.md"), `# Work Unit Implementation Run\n\nRun: ${runName}\nWork unit: ${workUnitKey}\nRelease: ${workUnitConfig.releaseId}\n\n## Source Handoff\n\n- Work units document: ${workUnitConfig.workUnitsDocument}\n\n## Counts\n\n- Lenses: ${profile.lenses.length}\n- Variants: ${profile.variants.length}\n- Passes per lens/variant: ${passesPerLens}\n- Plan auditor prompts: ${combinations.length}\n\n## Execution Order\n\n1. Execute prompts/plan.md with the work-unit planner.\n2. Execute prompts/plan-auditors/${workUnitKey}/*.md with plan auditors.\n3. Execute prompts/consolidate-plan.md.\n4. Execute prompts/validate-plan.md.\n5. Execute prompts/repair-plan.md.\n6. Review final/approved-artifacts/${workUnitKey}/ and apply gate policy.\n7. Publish approved artifacts to ${versionedWorkUnitDir} and ${versionedDecisionLog}.\n8. Execute prompts/implement-tasks.md task by task only after approval.\n9. After each implementation or correction, run \`wefter work-unit guard --run-id ${runName} --task-id <task-id> --mode ReadyForReview\`.\n10. Review the task with prompts/review-task.md.\n11. After each task review, run \`wefter work-unit guard --run-id ${runName} --task-id <task-id> --mode ReadyForNextTask\`.\n12. If the guard reports Needs Fix, correct the same task and repeat implementation guard -> review -> next-task guard.\n13. If the guard reports Blocked, pause the work unit for human decision or specification repair.\n14. Before final validation, run \`wefter work-unit guard --run-id ${runName} --mode ReadyForFinalValidation\`.\n15. Execute prompts/validate-work-unit.md only when all tasks pass review and the final-validation guard passes.\n`, "utf8");
+  fs.writeFileSync(path.join(stagingRunRoot, "README.md"), `# Delivery Implementation Run\n\nRun: ${runName}\nDelivery unit: ${deliveryUnitKey}\nRelease: ${deliveryConfig.releaseId}\n\n## Source Handoff\n\n- Deliverables document: ${deliveryConfig.deliverablesDocument}\n\n## Counts\n\n- Lenses: ${profile.lenses.length}\n- Variants: ${profile.variants.length}\n- Passes per lens/variant: ${passesPerLens}\n- Plan auditor prompts: ${combinations.length}\n\n## Execution Order\n\n1. Execute prompts/plan.md with the delivery planner.\n2. Execute prompts/plan-auditors/${deliveryUnitKey}/*.md with plan auditors.\n3. Execute prompts/consolidate-plan.md.\n4. Execute prompts/validate-plan.md.\n5. Execute prompts/repair-plan.md.\n6. Review final/approved-artifacts/${deliveryUnitKey}/ and apply gate policy.\n7. Publish approved artifacts to ${versionedDeliveryDir} and ${versionedDecisionLog}.\n8. Execute prompts/implement-tasks.md task by task only after approval.\n9. After each implementation or correction, run \`${wefterConfig.runnerCommand} delivery guard --run-id ${runName} --task-id <task-id> --mode ReadyForReview\`.\n10. Review the task with prompts/review-task.md.\n11. After each task review, run \`${wefterConfig.runnerCommand} delivery guard --run-id ${runName} --task-id <task-id> --mode ReadyForNextTask\`.\n12. If the guard reports Needs Fix, correct the same task and repeat implementation guard -> review -> next-task guard.\n13. If the guard reports Blocked, pause the delivery unit for human decision or specification repair.\n14. Before final validation, run \`${wefterConfig.runnerCommand} delivery guard --run-id ${runName} --mode ReadyForFinalValidation\`.\n15. Execute prompts/validate-delivery.md only when all tasks pass review and the final-validation guard passes.\n`, "utf8");
 
   if (fs.existsSync(runRoot)) {
     throw new Error(`Run directory was created before finalizing the staging move: ${runRoot}`);
   }
   fs.renameSync(stagingRunRoot, runRoot);
 
-  console.log(`Created work-unit implementation run: ${runRoot}`);
-  console.log(`Work unit: ${workUnitKey}`);
+  console.log(`Created delivery implementation run: ${runRoot}`);
+  console.log(`Delivery unit: ${deliveryUnitKey}`);
   console.log(`Plan auditor prompts generated: ${combinations.length}`);
   console.log(`Next prompt: ${path.join(runRoot, "prompts", "plan.md")}`);
+}
+
+function commandDeliveryGuard(flags) {
+  commandDeliveryGuardInternal(flags);
 }
 
 function requireProperty(object, name, context) {
@@ -2365,13 +2542,11 @@ function getReviewMachineResult(reviewPath, expectedTaskId) {
   if (!["Pass", "Needs Fix", "Blocked"].includes(result)) {
     throw new Error(`Review '${reviewPath}' Machine Result result must be one of: Pass, Needs Fix, Blocked.`);
   }
-  const iterationNumber = Number.parseInt(String(reviewIteration), 10);
-  if (!Number.isInteger(iterationNumber) || iterationNumber < 1) {
-    throw new Error(`Review '${reviewPath}' Machine Result reviewIteration must be an integer >= 1.`);
-  }
+  const iterationNumber = requireStrictInteger(reviewIteration, `Review '${reviewPath}' Machine Result reviewIteration`, 1);
   if (!Array.isArray(blockingFindings)) {
     throw new Error(`Review '${reviewPath}' Machine Result blockingFindings must be an array.`);
   }
+  blockingFindings.forEach((finding, index) => requireString(finding, `Review '${reviewPath}' Machine Result blockingFindings[${index}]`));
   if ((result === "Needs Fix" || result === "Blocked") && blockingFindings.length === 0) {
     throw new Error(`Review '${reviewPath}' Machine Result must list blockingFindings when result is '${result}'.`);
   }
@@ -2490,7 +2665,7 @@ function getLoopStatus(states) {
       return { result: "NeedsAction", action: "ReviewTask", taskId: state.taskId, reason: state.reason };
     }
   }
-  return { result: "Ready", action: "RunFinalWorkUnitValidation", taskId: null, reason: "All approved tasks have passing, non-stale reviews." };
+  return { result: "Ready", action: "RunFinalDeliveryValidation", taskId: null, reason: "All approved tasks have passing, non-stale reviews." };
 }
 
 function writeGuardResult(status, states, json) {
@@ -2506,11 +2681,30 @@ function writeGuardResult(status, states, json) {
   console.log(`Reason: ${status.reason}`);
 }
 
-function commandWorkUnitGuard(flags) {
+function assertNonEmptyFile(filePath, label) {
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    throw new Error(`Missing ${label}: ${filePath}`);
+  }
+  if (fs.readFileSync(filePath, "utf8").trim() === "") {
+    throw new Error(`${label} must not be empty: ${filePath}`);
+  }
+}
+
+function assertFinalValidationArtifacts(targetRoot, versionedDeliveryDir, versionedDecisionLog) {
+  const deliveryDir = resolveInsideTarget(targetRoot, versionedDeliveryDir, "versioned delivery dir");
+  const decisionLog = resolveInsideTarget(targetRoot, versionedDecisionLog, "versioned decision log");
+  assertNonEmptyFile(path.join(deliveryDir, "delivery-plan.md"), "approved delivery plan");
+  assertNonEmptyFile(path.join(deliveryDir, "traceability-matrix.md"), "approved traceability matrix");
+  assertNonEmptyFile(path.join(deliveryDir, "verification-plan.md"), "approved verification plan");
+  assertNonEmptyFile(decisionLog, "decision log");
+}
+
+function commandDeliveryGuardInternal(flags) {
   const targetRoot = resolveTarget(flags);
   const wefterConfig = readConfig(targetRoot);
-  const workUnitConfig = readJson(path.join(targetRoot, workUnitConfigPath(wefterConfig, flags)), "work-unit config");
-  validateWorkUnitConfig(workUnitConfig);
+  assertWorkflowEnabled(wefterConfig, DELIVERY_WORKFLOW_ID);
+  const deliveryConfig = readJson(path.join(targetRoot, deliveryConfigPath(wefterConfig, flags)), "delivery config");
+  validateDeliveryConfig(deliveryConfig);
 
   const mode = flags.mode || "Status";
   if (!["Status", "ReadyForReview", "ReadyForNextTask", "ReadyForFinalValidation"].includes(mode)) {
@@ -2518,23 +2712,26 @@ function commandWorkUnitGuard(flags) {
   }
 
   let runRoot;
+  if (flags["run-id"] && flags["run-root"]) {
+    throw new Error("Use either --run-id or --run-root, not both.");
+  }
   if (flags["run-root"]) {
     runRoot = resolveInsideTarget(targetRoot, flags["run-root"], "run root");
   } else {
     assertPlainRunId(flags["run-id"]);
-    runRoot = resolveInsideTarget(targetRoot, path.join(workUnitConfig.runArtifactsRoot, flags["run-id"]), "run root");
+    runRoot = resolveInsideTarget(targetRoot, path.join(deliveryConfig.runArtifactsRoot, flags["run-id"]), "run root");
   }
   if (!fs.existsSync(runRoot)) {
     throw new Error(`Run root not found: ${runRoot}`);
   }
 
   const manifestPath = path.join(runRoot, "manifest.json");
-  const manifest = readJson(manifestPath, "work-unit run manifest");
-  if (manifest.workflowId !== WORK_UNIT_WORKFLOW_ID) {
-    throw new Error(`Run manifest workflowId must be ${WORK_UNIT_WORKFLOW_ID}.`);
+  const manifest = readJson(manifestPath, "delivery run manifest");
+  if (manifest.workflowId !== DELIVERY_WORKFLOW_ID) {
+    throw new Error(`Run manifest workflowId must be ${DELIVERY_WORKFLOW_ID}.`);
   }
-  const versionedWorkUnitDir = requireProperty(requireProperty(manifest, "paths", "manifest"), "versionedWorkUnitDir", "manifest.paths");
-  const taskSpecsDir = resolveInsideTarget(targetRoot, path.join(versionedWorkUnitDir, "task-specs"), "task specs directory");
+  const versionedDeliveryDir = requireProperty(requireProperty(manifest, "paths", "manifest"), "versionedDeliveryDir", "manifest.paths");
+  const taskSpecsDir = resolveInsideTarget(targetRoot, path.join(versionedDeliveryDir, "task-specs"), "task specs directory");
   const taskLogDir = path.join(runRoot, "implementation", "task-logs");
   const taskReviewDir = path.join(runRoot, "implementation", "task-reviews");
   if (!fs.existsSync(taskLogDir)) {
@@ -2584,8 +2781,10 @@ function commandWorkUnitGuard(flags) {
 
   if (mode === "ReadyForFinalValidation") {
     if (status.result !== "Ready") {
-      throw new Error(`Work unit is not ready for final validation. Next required action: ${status.action} for task '${status.taskId}'. Reason: ${status.reason}`);
+      throw new Error(`Delivery unit is not ready for final validation. Next required action: ${status.action} for task '${status.taskId}'. Reason: ${status.reason}`);
     }
+    const versionedDecisionLog = requireProperty(requireProperty(manifest, "paths", "manifest"), "versionedDecisionLog", "manifest.paths");
+    assertFinalValidationArtifacts(targetRoot, versionedDeliveryDir, versionedDecisionLog);
     writeGuardResult(status, states, flags.json);
   }
 }
@@ -2671,11 +2870,14 @@ function commandDoctor(flags) {
       }
     }
   });
-  check("work-unit workflow config", () => {
-    const configPath = path.join(targetRoot, workUnitConfigPath(config));
-    const profilePath = path.join(targetRoot, workUnitProfilePath(config));
-    validateWorkUnitConfig(readJson(configPath, "work-unit config"));
-    validateWorkUnitProfile(readJson(profilePath, "work-unit profile"));
+  check("delivery workflow config", () => {
+    if (!workflowSettings(config, DELIVERY_WORKFLOW_ID).enabled) {
+      return;
+    }
+    const configPath = path.join(targetRoot, deliveryConfigPath(config));
+    const profilePath = path.join(targetRoot, deliveryProfilePath(config));
+    validateDeliveryConfig(readJson(configPath, "delivery config"));
+    validateDeliveryProfile(readJson(profilePath, "delivery profile"));
   });
   check("product-shaping workflow config", () => {
     const configPath = path.join(targetRoot, productShapingConfigPath(config));
@@ -2707,21 +2909,31 @@ function commandDoctor(flags) {
     assertIncludes(orchestrator, config.profilePath, "orchestrator profile path");
     assertIncludes(orchestrator, config.runnerCommand, "orchestrator runner command");
   });
-  check("work-unit opencode agents", () => {
+  check("delivery opencode agents", () => {
     const agentFiles = [
-      "wefter-work-unit-orchestrator.md",
-      "wefter-work-unit-planner.md",
-      "wefter-work-unit-plan-auditor.md",
-      "wefter-work-unit-plan-consolidator.md",
-      "wefter-work-unit-plan-validator.md",
-      "wefter-work-unit-plan-repairer.md",
-      "wefter-work-unit-task-implementer.md",
-      "wefter-work-unit-task-reviewer.md",
-      "wefter-work-unit-validator.md"
+      "wefter-delivery-orchestrator.md",
+      "wefter-delivery-planner.md",
+      "wefter-delivery-plan-auditor.md",
+      "wefter-delivery-plan-consolidator.md",
+      "wefter-delivery-plan-validator.md",
+      "wefter-delivery-plan-repairer.md",
+      "wefter-delivery-task-implementer.md",
+      "wefter-delivery-task-reviewer.md",
+      "wefter-delivery-validator.md"
     ];
-    const workUnitConfig = readJson(path.join(targetRoot, workUnitConfigPath(config)), "work-unit config");
-    const posixGlob = `${workUnitConfig.runArtifactsRoot}/**`;
-    const windowsGlob = windowsPermissionGlob(workUnitConfig.runArtifactsRoot);
+    const deliverySettings = workflowSettings(config, DELIVERY_WORKFLOW_ID);
+    if (!deliverySettings.enabled) {
+      for (const file of agentFiles) {
+        const fullPath = path.join(targetRoot, ".opencode/agent", file);
+        if (fs.existsSync(fullPath)) {
+          throw new Error(`Disabled delivery-implementation workflow must not install ${file}.`);
+        }
+      }
+      return;
+    }
+    const deliveryConfig = readJson(path.join(targetRoot, deliveryConfigPath(config)), "delivery config");
+    const posixGlob = `${deliveryConfig.runArtifactsRoot}/**`;
+    const windowsGlob = windowsPermissionGlob(deliveryConfig.runArtifactsRoot);
 
     for (const file of agentFiles) {
       const fullPath = path.join(targetRoot, ".opencode/agent", file);
@@ -2733,11 +2945,11 @@ function commandDoctor(flags) {
       }
     }
 
-    const orchestrator = readTextRequired(path.join(targetRoot, ".opencode/agent/wefter-work-unit-orchestrator.md"));
-    assertIncludes(orchestrator, CONFIG_FILE, "work-unit orchestrator config reference");
-    assertIncludes(orchestrator, workUnitConfigPath(config), "work-unit orchestrator workflow config path");
-    assertIncludes(orchestrator, workUnitProfilePath(config), "work-unit orchestrator workflow profile path");
-    assertIncludes(orchestrator, config.runnerCommand, "work-unit orchestrator runner command");
+    const orchestrator = readTextRequired(path.join(targetRoot, ".opencode/agent/wefter-delivery-orchestrator.md"));
+    assertIncludes(orchestrator, CONFIG_FILE, "delivery orchestrator config reference");
+    assertIncludes(orchestrator, deliveryConfigPath(config), "delivery orchestrator workflow config path");
+    assertIncludes(orchestrator, deliveryProfilePath(config), "delivery orchestrator workflow profile path");
+    assertIncludes(orchestrator, config.runnerCommand, "delivery orchestrator runner command");
   });
   check("product-shaping opencode agents", () => {
     const agentFiles = [
@@ -2807,12 +3019,19 @@ function commandDoctor(flags) {
     assertIncludes(content, config.templateRoot, "skill template root");
     assertIncludes(content, config.processDocPath, "skill process doc path");
   });
-  check("work-unit opencode skill", () => {
-    const skillPath = path.join(targetRoot, ".opencode/skills/work-unit-implementation/SKILL.md");
+  check("delivery opencode skill", () => {
+    const skillPath = path.join(targetRoot, ".opencode/skills/delivery-implementation/SKILL.md");
+    if (!workflowSettings(config, DELIVERY_WORKFLOW_ID).enabled) {
+      if (fs.existsSync(skillPath)) {
+        throw new Error("Disabled delivery-implementation workflow must not install its OpenCode skill.");
+      }
+      return;
+    }
     const content = readTextRequired(skillPath);
     assertNoPlaceholders(skillPath, content);
-    assertIncludes(content, workUnitConfigPath(config), "work-unit skill config path");
-    assertIncludes(content, workUnitProfilePath(config), "work-unit skill profile path");
+    assertIncludes(content, "/wefter-run-delivery", "delivery skill command reference");
+    assertIncludes(content, deliveryConfigPath(config), "delivery skill runtime config path");
+    assertIncludes(content, deliveryProfilePath(config), "delivery skill runtime profile path");
   });
   check("product-shaping opencode skill", () => {
     const skillPath = path.join(targetRoot, ".opencode/skills/product-shaping/SKILL.md");
@@ -2831,10 +3050,17 @@ function commandDoctor(flags) {
   });
   check("opencode commands", () => {
     const opencode = readJson(path.join(targetRoot, "opencode.json"), "opencode.json");
-    if (opencode.command?.["wefter-audit-docs"]?.agent !== "wefter-doc-audit-orchestrator" || opencode.command?.["wefter-generate-doc-audit-profile"]?.agent !== "wefter-doc-audit-profile-builder" || opencode.command?.["wefter-repair-docs"]?.agent !== "wefter-doc-repair-orchestrator" || opencode.command?.["wefter-run-work-unit"]?.agent !== "wefter-work-unit-orchestrator") {
+    if (opencode.command?.["wefter-audit-docs"]?.agent !== "wefter-doc-audit-orchestrator" || opencode.command?.["wefter-generate-doc-audit-profile"]?.agent !== "wefter-doc-audit-profile-builder" || opencode.command?.["wefter-repair-docs"]?.agent !== "wefter-doc-repair-orchestrator") {
       throw new Error("Missing Wefter opencode commands.");
     }
     const productSettings = workflowSettings(config, PRODUCT_SHAPING_WORKFLOW_ID);
+    const deliverySettings = workflowSettings(config, DELIVERY_WORKFLOW_ID);
+    if (deliverySettings.enabled && opencode.command?.["wefter-run-delivery"]?.agent !== "wefter-delivery-orchestrator") {
+      throw new Error("Missing enabled delivery-implementation opencode command.");
+    }
+    if (!deliverySettings.enabled && opencode.command?.["wefter-run-delivery"]) {
+      throw new Error("Disabled delivery-implementation workflow must not install a runnable opencode command.");
+    }
     if (productSettings.enabled && opencode.command?.["wefter-shape-product"]?.agent !== "wefter-product-orchestrator") {
       throw new Error("Missing enabled product-shaping opencode command.");
     }
@@ -2912,12 +3138,12 @@ export async function main(argv = process.argv.slice(2)) {
     commandProductValidate(flags);
     return;
   }
-  if (command === "work-unit" && subcommand === "run") {
-    commandWorkUnitRun(flags);
+  if (command === "delivery" && subcommand === "run") {
+    commandDeliveryRun(flags);
     return;
   }
-  if (command === "work-unit" && subcommand === "guard") {
-    commandWorkUnitGuard(flags);
+  if (command === "delivery" && subcommand === "guard") {
+    commandDeliveryGuard(flags);
     return;
   }
   if (command === "profile" && subcommand === "scaffold") {

@@ -19,7 +19,7 @@ Then restart OpenCode and run:
 /wefter-shape-product
 /wefter-audit-docs
 /wefter-repair-docs
-/wefter-run-work-unit
+/wefter-run-delivery
 ```
 
 Validate an installation with:

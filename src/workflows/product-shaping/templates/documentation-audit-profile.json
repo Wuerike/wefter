@@ -37,7 +37,7 @@
     {
       "id": "legacy-vocabulary-leak",
       "title": "Legacy vocabulary leak",
-      "instruction": "Find unintended use of legacy vocabulary such as phase, work unit or slice where release or deliverable should be canonical."
+      "instruction": "Find unintended use of legacy vocabulary such as phase or slice where release or deliverable should be canonical."
     },
     {
       "id": "path-defaults",
@@ -59,7 +59,7 @@
     {
       "id": "runtime-gates-and-bypasses",
       "title": "Runtime gates and bypasses",
-      "focus": "Audit CLI runtime behavior for product shape, product validate and work-unit handoff consumption. Compare docs and doctrine against command dispatch, config loading, path normalization, run generation, DELIVERABLES parsing, completion evidence, handoff compatibility, manifest trust and tests. Look for safe-equivalent path bypasses, stale evidence acceptance, documented-valid artifacts that fail validation and invalid artifacts that pass."
+      "focus": "Audit CLI runtime behavior for product shape, product validate and delivery handoff consumption. Compare docs and doctrine against command dispatch, config loading, path normalization, run generation, DELIVERABLES parsing, completion evidence, handoff compatibility, manifest trust and tests. Look for safe-equivalent path bypasses, stale evidence acceptance, documented-valid artifacts that fail validation and invalid artifacts that pass."
     },
     {
       "id": "prompts-agents-opencode-execution",
