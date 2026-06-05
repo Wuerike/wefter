@@ -1,12 +1,14 @@
 import fs from "node:fs";
+import crypto from "node:crypto";
 import path from "node:path";
 import process from "node:process";
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { fileURLToPath } from "node:url";
 
-const VERSION = "0.2.1";
+const VERSION = "0.3.0";
 const CONFIG_FILE = "wefter.config.json";
+const INSTALL_MANIFEST_FILE = ".wefter/install-manifest.json";
 const PRODUCT_SHAPING_WORKFLOW_ID = "product-shaping";
 const DOCUMENTATION_REPAIR_WORKFLOW_ID = "documentation-repair";
 const WORK_UNIT_WORKFLOW_ID = "work-unit-implementation";
@@ -67,6 +69,7 @@ function printHelp() {
 
 Usage:
   wefter init [--yes] [--force] [--target <path>] [--profile-path <path>] [--artifact-root <path>] [--template-root <path>] [--process-doc-path <path>] [--runner-command <command>]
+  wefter uninstall [--target <path>] [--yes] [--force] [--dry-run]
   wefter product shape [--target <path>] [--release-id <id>] [--run-name <name>] [--spec-root <path>] [--run-root <path>] [--config-path <path>] [--profile-path <path>] [--dry-run]
   wefter product validate [--target <path>] [--release-id <id>] [--run-id <id> | --run-root <path>] [--config-path <path>] [--json]
   wefter docs audit [--target <path>] [--profile-path <path>] [--run-name <name>] [--passes-per-lens <n>] [--max-audits <n>] [--dry-run]
@@ -80,6 +83,7 @@ Usage:
 
 Commands:
   init              Install opencode agents, skill, commands, templates and local config.
+  uninstall         Remove files recorded in the Wefter install manifest.
   product shape     Generate one product-shaping run skeleton.
   product validate  Validate product-shaping specs against the completion gate.
   docs audit        Generate one documentation audit run from the configured profile.
@@ -124,6 +128,9 @@ function parseArgs(argv) {
 function allowedFlagsForCommand(command, subcommand) {
   if (command === "init") {
     return ["yes", "force", "target", "profile-path", "artifact-root", "template-root", "process-doc-path", "runner-command"];
+  }
+  if (command === "uninstall") {
+    return ["target", "yes", "force", "dry-run"];
   }
   if (command === "new-run") {
     return ["target", "profile-path", "run-name", "passes-per-lens", "max-audits", "dry-run"];
@@ -398,6 +405,129 @@ function writeJson(filePath, value) {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
+function sha256File(filePath) {
+  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+}
+
+function listFilesRecursive(root) {
+  if (!fs.existsSync(root)) {
+    return [];
+  }
+  const files = [];
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    const fullPath = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...listFilesRecursive(fullPath));
+      continue;
+    }
+    if (entry.isFile()) {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
+function addFileIfExists(targetRoot, files, fullPath) {
+  if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) {
+    return;
+  }
+  ensureInside(targetRoot, fullPath, "installed file");
+  files.add(toDisplayPath(targetRoot, fullPath));
+}
+
+function addDirectoryFilesIfExists(targetRoot, files, fullPath) {
+  if (!fs.existsSync(fullPath)) {
+    return;
+  }
+  ensureInside(targetRoot, fullPath, "installed directory");
+  for (const file of listFilesRecursive(fullPath)) {
+    addFileIfExists(targetRoot, files, file);
+  }
+}
+
+function knownOpencodeCommandNames() {
+  return [
+    "wefter-audit-docs",
+    "wefter-generate-doc-audit-profile",
+    "wefter-repair-docs",
+    "wefter-shape-product",
+    "wefter-run-work-unit"
+  ];
+}
+
+function configuredWatcherIgnores(targetRoot, config) {
+  const workUnitConfig = readJsonIfExists(path.join(targetRoot, workUnitConfigPath(config)), "work-unit config");
+  const productSettings = workflowSettings(config, PRODUCT_SHAPING_WORKFLOW_ID);
+  return [config.artifactRoot, config.templateRoot, documentationRepairArtifactRoot(), workUnitConfig?.runArtifactsRoot, productSettings.enabled ? productShapingRunRoot(config) : null]
+    .filter(Boolean)
+    .map((ignored) => `${ignored.replace(/\/$/, "")}/**`);
+}
+
+function collectInstallManifestFiles(targetRoot, config) {
+  const files = new Set();
+  addFileIfExists(targetRoot, files, path.join(targetRoot, CONFIG_FILE));
+  addDirectoryFilesIfExists(targetRoot, files, path.join(targetRoot, config.workflowRoot));
+  addDirectoryFilesIfExists(targetRoot, files, path.join(targetRoot, config.templateRoot));
+  addFileIfExists(targetRoot, files, path.join(targetRoot, config.profilePath));
+  addFileIfExists(targetRoot, files, path.join(targetRoot, config.processDocPath));
+  addFileIfExists(targetRoot, files, path.join(targetRoot, productShapingConfigPath(config)));
+  addFileIfExists(targetRoot, files, path.join(targetRoot, productShapingProfilePath(config)));
+  addFileIfExists(targetRoot, files, path.join(targetRoot, workUnitConfigPath(config)));
+  addFileIfExists(targetRoot, files, path.join(targetRoot, workUnitProfilePath(config)));
+
+  const opencodeAgentRoot = path.join(targetRoot, ".opencode/agent");
+  if (fs.existsSync(opencodeAgentRoot)) {
+    for (const file of fs.readdirSync(opencodeAgentRoot)) {
+      if (file.startsWith("wefter-") && file.endsWith(".md")) {
+        addFileIfExists(targetRoot, files, path.join(opencodeAgentRoot, file));
+      }
+    }
+  }
+  for (const skill of ["documentation-audit", "documentation-repair", "product-shaping", "work-unit-implementation"]) {
+    addDirectoryFilesIfExists(targetRoot, files, path.join(targetRoot, ".opencode/skills", skill));
+  }
+
+  return [...files]
+    .filter((relativePath) => relativePath !== INSTALL_MANIFEST_FILE && relativePath !== "opencode.json")
+    .sort();
+}
+
+function writeInstallManifest(targetRoot, config) {
+  const manifestPath = path.join(targetRoot, INSTALL_MANIFEST_FILE);
+  const files = collectInstallManifestFiles(targetRoot, config).map((relativePath) => ({
+    path: relativePath,
+    sha256: sha256File(path.join(targetRoot, relativePath))
+  }));
+  writeJson(manifestPath, {
+    version: 1,
+    packageName: "@wefter/opencode",
+    packageVersion: VERSION,
+    generatedAt: new Date().toISOString(),
+    files,
+    managedOpencode: {
+      commands: knownOpencodeCommandNames(),
+      skillsPath: ".opencode/skills",
+      watcherIgnores: configuredWatcherIgnores(targetRoot, config)
+    }
+  });
+}
+
+function removeEmptyParents(targetRoot, startDir) {
+  let current = startDir;
+  while (current && current !== targetRoot && isInsideDirectory(targetRoot, current)) {
+    if (!fs.existsSync(current)) {
+      current = path.dirname(current);
+      continue;
+    }
+    const entries = fs.readdirSync(current);
+    if (entries.length > 0) {
+      return;
+    }
+    fs.rmdirSync(current);
+    current = path.dirname(current);
+  }
+}
+
 function writeTextIfSafe(filePath, content, force) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   if (fs.existsSync(filePath)) {
@@ -570,17 +700,12 @@ function copyDirectory(sourceRoot, destinationRoot, force) {
 function mergeOpencodeConfig(targetRoot, config, force) {
   const opencodePath = path.join(targetRoot, "opencode.json");
   const existing = fs.existsSync(opencodePath) ? readJson(opencodePath, "opencode.json") : { "$schema": "https://opencode.ai/config.json" };
-  const workUnitConfig = readJsonIfExists(path.join(targetRoot, workUnitConfigPath(config)), "work-unit config");
   const productSettings = workflowSettings(config, PRODUCT_SHAPING_WORKFLOW_ID);
 
   existing["$schema"] = existing["$schema"] || "https://opencode.ai/config.json";
   existing.watcher = existing.watcher || {};
   existing.watcher.ignore = Array.isArray(existing.watcher.ignore) ? existing.watcher.ignore : [];
-  for (const ignored of [config.artifactRoot, config.templateRoot, documentationRepairArtifactRoot(), workUnitConfig?.runArtifactsRoot, productSettings.enabled ? productShapingRunRoot(config) : null]) {
-    if (!ignored) {
-      continue;
-    }
-    const pattern = `${ignored.replace(/\/$/, "")}/**`;
+  for (const pattern of configuredWatcherIgnores(targetRoot, config)) {
     if (!existing.watcher.ignore.includes(pattern)) {
       existing.watcher.ignore.push(pattern);
     }
@@ -1040,6 +1165,7 @@ async function commandInit(flags) {
   if (!fs.existsSync(profileFullPath)) {
     writeJson(profileFullPath, defaultProfile(config));
   }
+  writeInstallManifest(targetRoot, config);
 
   console.log(`Installed Wefter for OpenCode into ${targetRoot}`);
   console.log(`Profile: ${config.profilePath}`);
@@ -1047,6 +1173,122 @@ async function commandInit(flags) {
   console.log(`Runner command: ${config.runnerCommand}`);
   console.log(`Tip: add ${config.artifactRoot}/ to .gitignore if you do not want to track generated audit runs.`);
   console.log("Restart opencode before using /wefter-shape-product, /wefter-audit-docs, /wefter-generate-doc-audit-profile, /wefter-repair-docs, or /wefter-run-work-unit.");
+}
+
+function readInstallManifest(targetRoot) {
+  const manifestPath = path.join(targetRoot, INSTALL_MANIFEST_FILE);
+  if (!fs.existsSync(manifestPath)) {
+    throw new Error(`Missing ${INSTALL_MANIFEST_FILE}. Re-run wefter init with the current version before uninstalling, or remove Wefter files manually.`);
+  }
+  const manifest = readJson(manifestPath, "install manifest");
+  assertObject(manifest, "Install manifest");
+  if (manifest.version !== 1) {
+    throw new Error("Install manifest must have version: 1.");
+  }
+  if (!Array.isArray(manifest.files)) {
+    throw new Error("Install manifest files must be an array.");
+  }
+  return manifest;
+}
+
+function updateOpencodeForUninstall(targetRoot, manifest, dryRun) {
+  const opencodePath = path.join(targetRoot, "opencode.json");
+  if (!fs.existsSync(opencodePath)) {
+    return false;
+  }
+  const opencode = readJson(opencodePath, "opencode.json");
+  let changed = false;
+  for (const commandName of manifest.managedOpencode?.commands || knownOpencodeCommandNames()) {
+    if (opencode.command?.[commandName]) {
+      delete opencode.command[commandName];
+      changed = true;
+    }
+  }
+  const watcherIgnore = opencode.watcher?.ignore;
+  if (Array.isArray(watcherIgnore)) {
+    const remove = new Set(manifest.managedOpencode?.watcherIgnores || []);
+    const nextIgnore = watcherIgnore.filter((item) => !remove.has(item));
+    if (nextIgnore.length !== watcherIgnore.length) {
+      opencode.watcher.ignore = nextIgnore;
+      changed = true;
+    }
+  }
+  const skillsPath = manifest.managedOpencode?.skillsPath || ".opencode/skills";
+  if (Array.isArray(opencode.skills?.paths) && opencode.skills.paths.includes(skillsPath)) {
+    const skillsRoot = path.join(targetRoot, skillsPath);
+    const hasRemainingSkills = fs.existsSync(skillsRoot) && listFilesRecursive(skillsRoot).length > 0;
+    if (!hasRemainingSkills) {
+      opencode.skills.paths = opencode.skills.paths.filter((item) => item !== skillsPath);
+      changed = true;
+    }
+  }
+  if (changed && !dryRun) {
+    writeJson(opencodePath, opencode);
+  }
+  return changed;
+}
+
+async function confirmUninstall(flags, targetRoot, manifest) {
+  if (flags.yes || flags["dry-run"] || !process.stdin.isTTY) {
+    return;
+  }
+  const rl = readline.createInterface({ input, output });
+  const answer = await rl.question(`Remove ${manifest.files.length} Wefter-managed files from ${targetRoot}? Type 'yes' to continue: `);
+  rl.close();
+  if (answer.trim().toLowerCase() !== "yes") {
+    throw new Error("Uninstall cancelled.");
+  }
+}
+
+async function commandUninstall(flags) {
+  const targetRoot = resolveTarget(flags);
+  const manifest = readInstallManifest(targetRoot);
+  await confirmUninstall(flags, targetRoot, manifest);
+
+  const removed = [];
+  const skipped = [];
+  let skippedModified = false;
+  for (const item of [...manifest.files].sort((a, b) => b.path.length - a.path.length)) {
+    const relativePath = normalizeRelativePath(item.path, "install manifest file path");
+    const fullPath = path.join(targetRoot, relativePath);
+    ensureInside(targetRoot, fullPath, "install manifest file");
+    if (!fs.existsSync(fullPath)) {
+      skipped.push(`${relativePath} (missing)`);
+      continue;
+    }
+    const currentHash = sha256File(fullPath);
+    if (currentHash !== item.sha256 && !flags.force) {
+      skipped.push(`${relativePath} (modified; use --force to remove)`);
+      skippedModified = true;
+      continue;
+    }
+    if (!flags["dry-run"]) {
+      fs.unlinkSync(fullPath);
+      removeEmptyParents(targetRoot, path.dirname(fullPath));
+    }
+    removed.push(relativePath);
+  }
+
+  const opencodeChanged = updateOpencodeForUninstall(targetRoot, manifest, flags["dry-run"]);
+  const manifestPath = path.join(targetRoot, INSTALL_MANIFEST_FILE);
+  if (fs.existsSync(manifestPath) && !flags["dry-run"] && !skippedModified) {
+    fs.unlinkSync(manifestPath);
+    removeEmptyParents(targetRoot, path.dirname(manifestPath));
+  }
+
+  console.log(`${flags["dry-run"] ? "Would remove" : "Removed"} Wefter-managed files: ${removed.length}`);
+  if (skipped.length > 0) {
+    console.log(`Skipped files: ${skipped.length}`);
+    for (const item of skipped) {
+      console.log(`- ${item}`);
+    }
+  }
+  if (opencodeChanged) {
+    console.log(`${flags["dry-run"] ? "Would update" : "Updated"} opencode.json Wefter entries.`);
+  }
+  if (skippedModified && !flags["dry-run"]) {
+    console.log(`Kept ${INSTALL_MANIFEST_FILE} so skipped files can be reviewed or removed with --force.`);
+  }
 }
 
 function readTextRequired(filePath) {
@@ -2603,12 +2845,7 @@ function commandDoctor(flags) {
       throw new Error("Missing .opencode/skills in opencode skills.paths.");
     }
     const watcherIgnore = Array.isArray(opencode.watcher?.ignore) ? opencode.watcher.ignore : [];
-    const workUnitConfig = readJson(path.join(targetRoot, workUnitConfigPath(config)), "work-unit config");
-    for (const ignored of [config.artifactRoot, config.templateRoot, documentationRepairArtifactRoot(), workUnitConfig.runArtifactsRoot, productSettings.enabled ? productShapingRunRoot(config) : null]) {
-      if (!ignored) {
-        continue;
-      }
-      const pattern = `${ignored.replace(/\/$/, "")}/**`;
+    for (const pattern of configuredWatcherIgnores(targetRoot, config)) {
       if (!watcherIgnore.includes(pattern)) {
         throw new Error(`Missing opencode watcher ignore '${pattern}'.`);
       }
@@ -2646,6 +2883,10 @@ export async function main(argv = process.argv.slice(2)) {
   }
   if (command === "init") {
     await commandInit(flags);
+    return;
+  }
+  if (command === "uninstall") {
+    await commandUninstall(flags);
     return;
   }
   if (command === "new-run") {

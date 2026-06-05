@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.0 - 2026-06-05
+
+- Added `.wefter/install-manifest.json` generation during `init` and a safe `wefter uninstall` command.
+- Added install manifest schema and documentation for previewing/removing Wefter-managed files.
+- Added roadmap and internal release specs for `delivery-implementation-migration` and `technical-shaping-foundation`.
+- Opted GitHub Actions workflows into Node 24 for JavaScript actions while preserving package test coverage across supported Node versions.
+
 ## 0.2.1 - 2026-06-04
 
 Stabilizes the `0.2.x` workflow contracts after the product-shaping release.

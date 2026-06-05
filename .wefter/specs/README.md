@@ -8,4 +8,9 @@ Default roots follow the approved `product-shaping` doctrine:
 - Installed workflow files: `.wefter/workflows/`
 - Runtime artifacts: `.wefter/runs/`
 
-The current internal release is `product-shaping-implementation`, which turns `src/workflows/product-shaping/README.md` into implementation deliverables.
+The completed internal release is `product-shaping-implementation`, which turns `src/workflows/product-shaping/README.md` into implementation deliverables.
+
+Planned internal releases:
+
+- `delivery-implementation-migration`
+- `technical-shaping-foundation`

@@ -28,6 +28,15 @@ Validate an installation with:
 wefter doctor
 ```
 
+Preview and remove an installation with:
+
+```bash
+wefter uninstall --dry-run
+wefter uninstall --yes
+```
+
+`uninstall` uses `.wefter/install-manifest.json` and removes only unchanged Wefter-managed files unless `--force` is used. It also removes Wefter commands and watcher ignores from `opencode.json` without deleting unrelated user configuration.
+
 Import an existing repository-specific documentation audit profile, such as a legacy `docs/audits/lenses.json`, with:
 
 ```bash

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wefter.dev/schemas/install-manifest.schema.json",
+  "type": "object",
+  "required": ["version", "packageName", "packageVersion", "generatedAt", "files", "managedOpencode"],
+  "properties": {
+    "version": { "const": 1 },
+    "packageName": { "const": "@wefter/opencode" },
+    "packageVersion": { "type": "string", "minLength": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": { "$ref": "#/$defs/relativePath" },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "managedOpencode": {
+      "type": "object",
+      "required": ["commands", "skillsPath", "watcherIgnores"],
+      "properties": {
+        "commands": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "skillsPath": { "$ref": "#/$defs/relativePath" },
+        "watcherIgnores": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$))[^\r\n]+$"
+    }
+  }
+}

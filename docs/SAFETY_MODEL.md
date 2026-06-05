@@ -11,6 +11,7 @@ Core rules:
 - Versioned workflow configuration is written under `.wefter/` by default.
 - Paths are target-repository relative and must not contain `..`.
 - Run directories are staged before becoming visible as final runs.
+- Installations write `.wefter/install-manifest.json`; uninstall removes manifest-recorded files only when unchanged unless `--force` is explicit.
 - OpenCode agent permissions restrict write access to configured artifact paths.
 - Implementation work must be task-level, reviewed and validated before moving to the next work unit.
 

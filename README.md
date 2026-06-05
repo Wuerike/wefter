@@ -13,6 +13,7 @@ package: @wefter/opencode
 repo: wefter
 cli: wefter
 config: wefter.config.json
+install manifest: .wefter/install-manifest.json
 local workflow files: .wefter/
 runtime artifacts: .audit/wefter/ for legacy workflows; .wefter/runs/ for product-shaping
 ```
@@ -68,6 +69,7 @@ wefter docs audit --profile-path docs/audits/lenses.json --passes-per-lens 1 --m
 wefter profile import --source docs/audits/lenses.json --force
 wefter docs repair --audit-report .audit/wefter/documentation-audit/<run-id>/final/final-documentation-audit-report.md
 wefter new-run documentation-audit --passes-per-lens 1 --max-audits 12
+wefter uninstall --dry-run
 ```
 
 ## Default Config
@@ -110,6 +112,7 @@ wefter new-run documentation-audit --passes-per-lens 1 --max-audits 12
 - `docs audit --profile-path` can use a repository-specific audit profile for one run without changing `wefter.config.json`.
 - `profile import` validates and copies an existing repository-relative audit profile into the configured Wefter profile path.
 - `docs repair` writes through a staging directory and requires an existing repository-relative audit report path.
+- `init` writes `.wefter/install-manifest.json` with checksums for installed files; `uninstall` removes only unchanged manifest-recorded files unless `--force` is used.
 - Paths in `wefter.config.json` must be relative to the target repository and must not contain `..`.
 - Run names are plain directory names and cannot contain path separators.
 - `product-shaping` writes versioned product specs under `.wefter/specs/` and runtime runs under `.wefter/runs/product-shaping/` by default.
@@ -119,8 +122,7 @@ wefter new-run documentation-audit --passes-per-lens 1 --max-audits 12
 
 ## Product Direction
 
-Next hardening steps after the `0.2.1` stabilization release:
+Next hardening steps after the `0.3.0` install-manifest release:
 
-1. Add installation manifest/uninstall support.
-2. Continue migration from legacy `work-unit-implementation` naming toward `delivery-implementation`.
-3. Implement `technical-shaping` only after its contract, CLI behavior and OpenCode command are ready.
+1. Continue migration from legacy `work-unit-implementation` naming toward `delivery-implementation`.
+2. Implement `technical-shaping` only after its contract, CLI behavior and OpenCode command are ready.

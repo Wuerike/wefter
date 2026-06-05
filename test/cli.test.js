@@ -131,6 +131,10 @@ function writeMinimalProductSpecs(target, releaseId, deliverableStatus = "ready"
 test("init installs config, OpenCode files, and doctor passes", () => {
   const target = initTarget("init");
 
+  const installManifest = readJson(path.join(target, ".wefter", "install-manifest.json"));
+  assert.equal(installManifest.version, 1);
+  assert.ok(installManifest.files.some((file) => file.path === "wefter.config.json"));
+  assert.ok(installManifest.files.some((file) => file.path === ".opencode/agent/wefter-product-orchestrator.md"));
   assert.equal(readJson(path.join(target, "wefter.config.json")).workflows["work-unit-implementation"].status, "available");
   assert.equal(readJson(path.join(target, "wefter.config.json")).workflows["product-shaping"].status, "available");
   assert.equal(readJson(path.join(target, "wefter.config.json")).workflows["product-shaping"].enabled, true);
@@ -158,8 +162,41 @@ test("init installs config, OpenCode files, and doctor passes", () => {
   assert.match(doctor.stdout, /Wefter installation looks healthy/);
 });
 
+test("uninstall removes manifest-recorded files and opencode entries", () => {
+  const target = initTarget("uninstall");
+
+  const dry = run(["uninstall", "--target", target, "--dry-run"]);
+  assert.match(dry.stdout, /Would remove Wefter-managed files/);
+  assert.ok(fs.existsSync(path.join(target, "wefter.config.json")));
+
+  run(["uninstall", "--target", target, "--yes"]);
+  assert.ok(!fs.existsSync(path.join(target, "wefter.config.json")));
+  assert.ok(!fs.existsSync(path.join(target, ".wefter", "install-manifest.json")));
+  assert.ok(!fs.existsSync(path.join(target, ".opencode", "agent", "wefter-product-orchestrator.md")));
+
+  const opencode = readJson(path.join(target, "opencode.json"));
+  assert.equal(opencode.command?.["wefter-audit-docs"], undefined);
+  assert.equal(opencode.command?.["wefter-shape-product"], undefined);
+  assert.ok(!opencode.skills?.paths?.includes(".opencode/skills"));
+});
+
+test("uninstall keeps manifest when modified files are skipped", () => {
+  const target = initTarget("uninstall-modified");
+  writeText(path.join(target, "wefter.config.json"), `${fs.readFileSync(path.join(target, "wefter.config.json"), "utf8")}\n`);
+
+  const result = run(["uninstall", "--target", target, "--yes"]);
+  assert.match(result.stdout, /modified; use --force to remove/);
+  assert.match(result.stdout, /Kept \.wefter\/install-manifest\.json/);
+  assert.ok(fs.existsSync(path.join(target, "wefter.config.json")));
+  assert.ok(fs.existsSync(path.join(target, ".wefter", "install-manifest.json")));
+
+  run(["uninstall", "--target", target, "--yes", "--force"]);
+  assert.ok(!fs.existsSync(path.join(target, "wefter.config.json")));
+  assert.ok(!fs.existsSync(path.join(target, ".wefter", "install-manifest.json")));
+});
+
 test("version flag reports package version", () => {
-  assert.equal(run(["--version"]).stdout.trim(), "0.2.1");
+  assert.equal(run(["--version"]).stdout.trim(), "0.3.0");
 });
 
 test("unknown command flags are rejected", () => {
@@ -189,6 +226,7 @@ test("documented command flags remain accepted by the command allowlist", () => 
   run(["profile", "import", "--target", target, "--source", importProfilePath, "--force"]);
   run(["profile", "scaffold", "--target", target, "--force"]);
   run(["doctor", "--target", target]);
+  run(["uninstall", "--target", target, "--dry-run"]);
 
   const validate = run(["product", "validate", "--target", target, "--release-id", "01_mvp", "--run-id", "missing-run", "--config-path", productConfig, "--json"], { expectFailure: true });
   assert.doesNotMatch(validate.stderr, /Unsupported option/);
