@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.5.0 - 2026-06-05
+
+- Refactored the CLI into modular core, install and workflow command modules so new workflows can be added without expanding the entrypoint.
+- Kept `src/cli/main.js` as a small dispatcher while preserving existing public command behavior.
+
 ## 0.4.0 - 2026-06-05
 
 - Completed the internal delivery runtime rename: configs, schemas, agents, prompts, manifests and artifacts now use `delivery-implementation` vocabulary with `wefter delivery run`, `wefter delivery guard` and `/wefter-run-delivery` as the only implementation entry points.
