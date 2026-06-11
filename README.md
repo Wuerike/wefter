@@ -1,19 +1,13 @@
 # Wefter for OpenCode
 
-Wefter instala agentes e skills para conduzir um fluxo agentico de desenvolvimento de aplicacoes: discovery, pesquisa de concorrentes, refinamento de produto, refinamento tecnico, planejamento por modulos, geracao de tasks, implementacao orientada a testes com TDD e review adversarial.
+[![CI](https://github.com/Wuerike/wefter/actions/workflows/ci.yml/badge.svg)](https://github.com/Wuerike/wefter/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/%40wefter%2Fopencode.svg)](https://www.npmjs.com/package/@wefter/opencode)
 
-O pacote foi desenhado para ser instalado em qualquer repositorio que use opencode, sem depender de git ativo e sem sobrescrever configuracao existente.
+Wefter installs OpenCode agents and skills for an agentic application development workflow: discovery, competitor research, product refinement, technical refinement, module planning, task generation, TDD-first implementation, and adversarial review.
 
-## O Que Vem Neste Pacote
+The package is designed to be installed into any repository that uses OpenCode. It does not require an active git repository and does not overwrite existing configuration unless explicitly forced.
 
-- `.opencode/agents`: agentes especializados para cada etapa do fluxo.
-- `.opencode/skills`: skills acionaveis pelo opencode com contratos, workflows e templates.
-- `docs`: documentacao de metodologia, contratos e mapa de artefatos gerados.
-- `scripts/wefter.mjs`: instala e remove a suite em qualquer plataforma com Node.js.
-- `scripts/validate.mjs`: valida agents, skills, frontmatter, fences Markdown e arquivos instalaveis.
-- `package.json`: expoe o binario `wefter` caso o pacote seja usado via npm/link.
-
-## Pacote
+## Package
 
 ```text
 package: @wefter/opencode
@@ -23,157 +17,164 @@ default artifact root: docs/wefter/
 install manifest: .opencode/wefter.manifest.json
 ```
 
-## Instalacao
+## Included Files
 
-Via npm/npx:
+- `.opencode/agents`: specialized agents for each workflow stage.
+- `.opencode/skills`: OpenCode skills with workflow rules, contracts, and templates.
+- `docs`: methodology, contracts, and generated artifact documentation.
+- `scripts/wefter.mjs`: cross-platform install, uninstall, check, and list commands.
+- `scripts/validate.mjs`: validation for agents, skills, frontmatter, Markdown fences, and installable files.
+- `package.json`: exposes the `wefter` binary for npm and local links.
 
-```bash
-npx @wefter/opencode install --target /caminho/do/repositorio
-```
+## Installation
 
-Se omitir o alvo, o script instala no diretorio atual.
-
-De um checkout local:
-
-Com Node.js:
-
-```bash
-node scripts/wefter.mjs install --target "C:\caminho\do\repositorio"
-```
-
-Ou, em um caminho Unix-like:
+With npm/npx:
 
 ```bash
-node scripts/wefter.mjs install --target /caminho/do/repositorio
+npx @wefter/opencode install --target /path/to/repository
 ```
 
-Para sobrescrever arquivos da suite que ja existam no alvo:
+If `--target` is omitted, Wefter installs into the current directory.
+
+From a local checkout:
 
 ```bash
-node scripts/wefter.mjs install --target /caminho/do/repositorio --force
+node scripts/wefter.mjs install --target /path/to/repository
 ```
 
-Para ver o que seria instalado sem escrever arquivos:
+Windows example:
 
 ```bash
-node scripts/wefter.mjs install --target /caminho/do/repositorio --dry-run
+node scripts/wefter.mjs install --target "C:\path\to\repository"
 ```
 
-Depois de instalar, reinicie o opencode. Configuracoes, agents e skills sao carregados apenas na inicializacao.
-
-## Remocao
-
-Via npm/npx:
+Overwrite existing Wefter-managed files in the target:
 
 ```bash
-npx @wefter/opencode uninstall --target /caminho/do/repositorio
+node scripts/wefter.mjs install --target /path/to/repository --force
 ```
 
-Ou, de um checkout local:
+Preview the install without writing files:
 
 ```bash
-node scripts/wefter.mjs uninstall --target "C:\caminho\do\repositorio"
+node scripts/wefter.mjs install --target /path/to/repository --dry-run
 ```
 
-Ou, em um caminho Unix-like:
+After installing, restart OpenCode. Config, agents, and skills are loaded only when OpenCode starts.
+
+## Uninstall
+
+With npm/npx:
 
 ```bash
-node scripts/wefter.mjs uninstall --target /caminho/do/repositorio
+npx @wefter/opencode uninstall --target /path/to/repository
 ```
 
-A remocao apaga somente os agents, skills e manifesto instalados pelo Wefter. Os artefatos de produto gerados no repositorio, por padrao em `docs/wefter/`, nao sao removidos.
+From a local checkout:
 
-Se algum arquivo instalado foi modificado manualmente, o uninstall aborta por seguranca. Use `--force` apenas se quiser remover mesmo assim.
+```bash
+node scripts/wefter.mjs uninstall --target /path/to/repository
+```
 
-## Inspecao E Validacao
+Windows example:
 
-Listar arquivos instalaveis:
+```bash
+node scripts/wefter.mjs uninstall --target "C:\path\to\repository"
+```
+
+Uninstall removes only the agents, skills, and manifest installed by Wefter. Product artifacts generated in the target repository, under `docs/wefter/` by default, are not removed.
+
+If an installed file was modified manually, uninstall aborts for safety. Use `--force` only when you intentionally want to remove modified Wefter files.
+
+## Inspection And Validation
+
+List installable files:
 
 ```bash
 node scripts/wefter.mjs list
 ```
 
-Checar uma instalacao em outro repositorio:
+Check an installation in another repository:
 
 ```bash
-node scripts/wefter.mjs check --target /caminho/do/repositorio
+node scripts/wefter.mjs check --target /path/to/repository
 ```
 
-Validar o Wefter antes de instalar ou commitar alteracoes:
+Validate Wefter before installing or committing changes:
 
 ```bash
 npm run validate
 ```
 
-## Uso Basico
+## Basic Usage
 
-1. Instale o Wefter no repositorio onde quer trabalhar.
-2. Reinicie o opencode.
-3. Selecione o agente `wefter`.
-4. No primeiro uso, responda ao setup: idioma dos artefatos, modo, raiz dos artefatos e politica de pesquisa de concorrentes.
-5. Envie uma ideia simples, por exemplo: `Quero criar uma plataforma para academias gerenciarem treinos e pagamentos`.
-6. O fluxo comeca em discovery e avancara etapa por etapa, sempre bloqueando o proximo modulo ate o modulo atual estar refinado, implementado e revisado.
+1. Install Wefter into the repository where you want to work.
+2. Restart OpenCode.
+3. Select the `wefter` agent.
+4. On first use, answer setup questions for artifact language, workflow mode, artifact root, and competitor research policy.
+5. Send a rough idea, for example: `I want to build a platform for gyms to manage workouts and payments`.
+6. Wefter starts at discovery and advances stage by stage, blocking the next module until the current module is refined, implemented, and reviewed.
 
-## Setup Inicial
+## Initial Setup
 
-O agente nao infere automaticamente o idioma dos artefatos. Ele pergunta antes de criar `docs/wefter/00-index.md`.
+The agent does not infer artifact language automatically. It asks before creating `docs/wefter/00-index.md`.
 
-Configuracao padrao recomendada:
+Recommended default configuration:
 
 ```yaml
 workflow_mode: standard
-artifact_language: pt-BR
+artifact_language: en-US
 artifact_root: docs/wefter
 complexity_default: medium
 competitor_research_policy: offer-during-discovery
 ```
 
-`workflow_mode: standard` e o padrao. A instalacao nao muda por modo; o agente orienta a profundidade por etapa.
+`workflow_mode: standard` is the default. Installation does not change by mode; the agent uses complexity to calibrate depth at runtime.
 
-## Complexidade Por Etapa
+## Stage Complexity
 
-- Baixa: MVP rapido, menos documentacao, foco em proximo passo seguro.
-- Media: recomendada, contratos e gates padrao.
-- Alta: pesquisa mais profunda, maior rastreabilidade tecnica/produto e revisao mais rigorosa.
-- Em todas as complexidades, implementacao segue TDD por padrao: escrever teste que falha, implementar o minimo para passar, refatorar e registrar evidencia.
+- Low: fast MVP path, compact documentation, and focused verification.
+- Medium: recommended default with standard contracts and gates.
+- High: deeper research, stronger product/technical traceability, and stricter review.
+- Across all complexity levels, implementation is TDD-first by default: write a failing test, implement the smallest passing change, refactor, and record evidence.
 
-O usuario pode pedir, por exemplo: `faca esse modulo com complexidade alta` ou `seguir discovery em baixa complexidade`.
+Users can ask for stage-specific depth, for example: `make this module high complexity` or `continue discovery with low complexity`.
 
-## Principios Do Fluxo
+## Workflow Principles
 
-- Comecar com input minimo: uma frase ou poucas ideias bastam.
-- Rodar setup antes do primeiro artefato para definir idioma e raiz.
-- Oferecer pesquisa web antes de estudar concorrentes.
-- Consolidar features por grupos, core e vertentes possiveis.
-- Selecionar posicionamento e features antes de dividir em modulos.
-- Trabalhar um modulo por vez, ate implementacao e review final.
-- Gerar tasks somente depois de refinamento completo de produto e tecnico.
-- Planejar testes junto com cada task, incluindo o primeiro teste esperado e os comandos de verificacao.
-- Exigir review humano antes de iniciar desenvolvimento agentico.
-- Implementar tasks com ciclo TDD red/green/refactor sempre que houver harness de testes viavel.
-- Registrar todas as decisoes tomadas durante desenvolvimento.
-- Usar review adversarial em loop para cada task, incluindo checagem de evidencia TDD e lacunas de teste.
-- Manter uma arvore de artefatos com dependencias e propagacao de mudancas.
+- Start from minimal input; one sentence can be enough.
+- Run setup before the first generated artifact to define language and root.
+- Offer web research before studying competitors.
+- Consolidate features into groups, core scope, and possible branches.
+- Select positioning and features before splitting work into modules.
+- Work on one module at a time until final implementation and review.
+- Generate tasks only after product and technical refinement are complete.
+- Plan tests with each task, including the first expected failing test and verification commands.
+- Require human review before agentic development starts.
+- Implement tasks with a red/green/refactor TDD loop whenever a viable test harness exists.
+- Record all decisions made during development.
+- Use adversarial review for each task, including TDD evidence and missing-test checks.
+- Maintain an artifact tree with dependencies and change propagation.
 
-## Artefatos Gerados No Projeto Alvo
+## Generated Artifacts
 
-Por padrao, agentes e skills criam e mantem documentos em:
+By default, agents and skills create and maintain documents under:
 
 ```text
 docs/wefter/
 ```
 
-O arquivo mais importante de navegacao e saude documental e:
+The most important navigation and artifact health file is:
 
 ```text
 docs/wefter/05-ops/artifact-map.md
 ```
 
-Ele contem fluxogramas Mermaid com a arvore de arquivos, quem gera quem, quem depende de quem e quais documentos devem ser revisitados quando um artefato muda.
+It contains Mermaid graphs with the file tree, generation dependencies, downstream dependencies, and documents that should be revisited when an artifact changes.
 
-## Documentacao
+## Documentation
 
-- `docs/contracts.md`: contratos de entrada e saida por etapa.
-- `docs/artifacts.md`: especificacao dos arquivos gerados no repositorio alvo.
-- `docs/methodology.md`: metodologias combinadas e como elas orientam o fluxo.
-- `docs/artifact-map-template.md`: template Mermaid para o mapa de artefatos.
+- `docs/contracts.md`: input and output contracts by stage.
+- `docs/artifacts.md`: generated artifact specification for target repositories.
+- `docs/methodology.md`: methods combined by the workflow and how they guide the flow.
+- `docs/artifact-map-template.md`: Mermaid template for the artifact map.
