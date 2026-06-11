@@ -1,6 +1,6 @@
-# Wefter
+# Wefter for OpenCode
 
-Suite de agentes e skills para conduzir um fluxo agentico de desenvolvimento de aplicacoes: discovery, pesquisa de concorrentes, refinamento de produto, refinamento tecnico, planejamento por modulos, geracao de tasks, implementacao orientada a testes com TDD e review adversarial.
+Wefter instala agentes e skills para conduzir um fluxo agentico de desenvolvimento de aplicacoes: discovery, pesquisa de concorrentes, refinamento de produto, refinamento tecnico, planejamento por modulos, geracao de tasks, implementacao orientada a testes com TDD e review adversarial.
 
 O pacote foi desenhado para ser instalado em qualquer repositorio que use opencode, sem depender de git ativo e sem sobrescrever configuracao existente.
 
@@ -13,7 +13,27 @@ O pacote foi desenhado para ser instalado em qualquer repositorio que use openco
 - `scripts/validate.mjs`: valida agents, skills, frontmatter, fences Markdown e arquivos instalaveis.
 - `package.json`: expoe o binario `wefter` caso o pacote seja usado via npm/link.
 
+## Pacote
+
+```text
+package: @wefter/opencode
+cli: wefter
+primary agent: wefter
+default artifact root: docs/wefter/
+install manifest: .opencode/wefter.manifest.json
+```
+
 ## Instalacao
+
+Via npm/npx:
+
+```bash
+npx @wefter/opencode install --target /caminho/do/repositorio
+```
+
+Se omitir o alvo, o script instala no diretorio atual.
+
+De um checkout local:
 
 Com Node.js:
 
@@ -26,8 +46,6 @@ Ou, em um caminho Unix-like:
 ```bash
 node scripts/wefter.mjs install --target /caminho/do/repositorio
 ```
-
-Se omitir o alvo, o script instala no diretorio atual.
 
 Para sobrescrever arquivos da suite que ja existam no alvo:
 
@@ -45,7 +63,13 @@ Depois de instalar, reinicie o opencode. Configuracoes, agents e skills sao carr
 
 ## Remocao
 
-Com Node.js:
+Via npm/npx:
+
+```bash
+npx @wefter/opencode uninstall --target /caminho/do/repositorio
+```
+
+Ou, de um checkout local:
 
 ```bash
 node scripts/wefter.mjs uninstall --target "C:\caminho\do\repositorio"
@@ -57,7 +81,7 @@ Ou, em um caminho Unix-like:
 node scripts/wefter.mjs uninstall --target /caminho/do/repositorio
 ```
 
-A remocao apaga somente os agents, skills e manifesto instalados por esta suite. Os artefatos de produto gerados no repositorio, por padrao em `docs/wefter/`, nao sao removidos.
+A remocao apaga somente os agents, skills e manifesto instalados pelo Wefter. Os artefatos de produto gerados no repositorio, por padrao em `docs/wefter/`, nao sao removidos.
 
 Se algum arquivo instalado foi modificado manualmente, o uninstall aborta por seguranca. Use `--force` apenas se quiser remover mesmo assim.
 
@@ -75,7 +99,7 @@ Checar uma instalacao em outro repositorio:
 node scripts/wefter.mjs check --target /caminho/do/repositorio
 ```
 
-Validar esta suite antes de instalar ou commitar alteracoes:
+Validar o Wefter antes de instalar ou commitar alteracoes:
 
 ```bash
 npm run validate
@@ -83,7 +107,7 @@ npm run validate
 
 ## Uso Basico
 
-1. Instale a suite no repositorio onde quer trabalhar.
+1. Instale o Wefter no repositorio onde quer trabalhar.
 2. Reinicie o opencode.
 3. Selecione o agente `wefter`.
 4. No primeiro uso, responda ao setup: idioma dos artefatos, modo, raiz dos artefatos e politica de pesquisa de concorrentes.

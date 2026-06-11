@@ -1,6 +1,6 @@
 # Methodology
 
-The suite combines pragmatic parts of several software and product development methods. It is not a rigid framework; it is a gated workflow for agentic development where documents are contracts.
+Wefter combines pragmatic parts of several software and product development methods. It is not a rigid framework; it is a gated workflow for agentic development where documents are contracts.
 
 The workflow starts with setup. The user chooses artifact language, artifact root, and baseline workflow mode before generated product documents are created.
 

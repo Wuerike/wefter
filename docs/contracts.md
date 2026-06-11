@@ -1,6 +1,6 @@
 # Workflow Contracts
 
-This document defines the input and output contracts for the product development agent suite.
+This document defines the input and output contracts for Wefter.
 
 Default artifact root: `docs/wefter/` in the target application repository.
 

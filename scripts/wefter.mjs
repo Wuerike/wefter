@@ -28,10 +28,10 @@ const sourceOpenCode = path.join(sourceRoot, ".opencode")
 
 function usage() {
   console.log(`Usage:
-  node scripts/wefter.mjs install [--target <path>] [--force] [--dry-run]
-  node scripts/wefter.mjs uninstall [--target <path>] [--force] [--dry-run]
-  node scripts/wefter.mjs check [--target <path>]
-  node scripts/wefter.mjs list
+  wefter install [--target <path>] [--force] [--dry-run]
+  wefter uninstall [--target <path>] [--force] [--dry-run]
+  wefter check [--target <path>]
+  wefter list
 
 Options:
   --target, -t  Repository directory. Defaults to the current directory.
