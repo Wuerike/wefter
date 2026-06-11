@@ -1,4 +1,5 @@
 node_modules/
+npm-debug.log*
 dist/
 coverage/
 .env
@@ -7,3 +8,10 @@ coverage/
 .local
 .wefter/runs
 opencode-session-*-raw.json
+
+.opencode/node_modules/
+.opencode/package.json
+.opencode/package-lock.json
+.opencode/bun.lock
+.opencode/.gitignore
+.opencode/wefter.manifest.json

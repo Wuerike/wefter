@@ -1,0 +1,48 @@
+{
+  "name": "@wefter/opencode",
+  "version": "0.6.0",
+  "description": "Installable Wefter agents and skills for OpenCode product discovery, module refinement, TDD development, and adversarial review.",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Wuerike/wefter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Wuerike/wefter/issues"
+  },
+  "homepage": "https://github.com/Wuerike/wefter#readme",
+  "bin": {
+    "wefter": "./scripts/wefter.mjs"
+  },
+  "scripts": {
+    "check": "node --check scripts/wefter.mjs && node --check scripts/suite-files.mjs && node --check scripts/validate.mjs && npm run validate",
+    "install:suite": "node scripts/wefter.mjs install",
+    "uninstall:suite": "node scripts/wefter.mjs uninstall",
+    "validate": "node scripts/validate.mjs",
+    "test": "npm run validate"
+  },
+  "keywords": [
+    "opencode",
+    "wefter",
+    "agents",
+    "skills",
+    "workflow",
+    "tdd"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "files": [
+    ".opencode/agents/",
+    ".opencode/skills/",
+    "docs/",
+    "scripts/",
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md"
+  ]
+}

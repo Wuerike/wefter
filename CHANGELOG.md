@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Replaced the legacy Wefter workflow implementation with the installable Wefter OpenCode agent and skill suite.
+- Renamed the primary agent, workflow skill, CLI, manifest and default artifact root to the `wefter` vocabulary.
+
 ## 0.5.0 - 2026-06-05
 
 - Refactored the CLI into modular core, install and workflow command modules so new workflows can be added without expanding the entrypoint.
